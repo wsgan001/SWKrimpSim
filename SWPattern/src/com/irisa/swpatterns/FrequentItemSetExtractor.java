@@ -18,6 +18,7 @@ import com.irisa.swpatterns.data.LabeledTransactions;
 import com.irisa.swpatterns.data.RDFPatternComponent.Type;
 
 import ca.pfv.spmf.algorithms.frequentpatterns.fin_prepost.FIN;
+import ca.pfv.spmf.algorithms.frequentpatterns.fin_prepost.PrePost;
 import ca.pfv.spmf.algorithms.frequentpatterns.fpgrowth.AlgoFPClose;
 import ca.pfv.spmf.algorithms.frequentpatterns.fpgrowth.AlgoFPMax;
 import ca.pfv.spmf.algorithms.frequentpatterns.relim.AlgoRelim;
@@ -44,7 +45,8 @@ public class FrequentItemSetExtractor {
 		FPMax,
 		FPClose,
 		Relim,
-		FIN
+		FIN,
+		PrePost
 	}
 
 	public FrequentItemSetExtractor() {
@@ -66,10 +68,10 @@ public class FrequentItemSetExtractor {
 	public Itemsets computeItemsets(Itemsets transactions) {
 		switch(this._algo) {
 		case FPClose:
-			logger.debug("Compute Frequent Itemsets with FPClose");
+			logger.debug("Compute Frequent Closed Itemsets with FPClose");
 			return computeItemSet_FPClose(transactions);
 		case FPMax:
-			logger.debug("Compute Frequent Itemsets with FPMax");
+			logger.debug("Compute Frequent Max Itemsets with FPMax");
 			return this.computeItemSet_FPMax(transactions);
 		case FIN:
 			logger.debug("Compute Frequent Itemsets with FIN");
@@ -77,6 +79,9 @@ public class FrequentItemSetExtractor {
 		case Relim:
 			logger.debug("Compute Frequent Itemsets with Relim");
 			return this.computeItemSet_Relim(transactions);
+		case PrePost:
+			logger.debug("Compute Frequent Closed Itemsets with PrePost");
+			return this.computeItemSet_Prepost(transactions);
 		default:
 			return null;
 		}
@@ -222,6 +227,43 @@ public class FrequentItemSetExtractor {
 	}
 
 	public Itemsets computeItemSet_Relim(LabeledTransactions input, AttributeIndex index) {
+		try {
+			index.printTransactionsItems(input, tmpTransactionFilename);
+			return this.computeItemSet_Relim(tmpTransactionFilename);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+
+	public Itemsets computeItemSet_Prepost(String input) {
+		try {
+			PrePost algoFpc = new PrePost();
+			algoFpc.setUsePrePostPlus(true);
+			logger.debug("Relim Algorithm");
+			Itemsets fpcResult;
+			algoFpc.runAlgorithm(input, 0.0, tmpItemsetFilename);
+			fpcResult = Utils.readItemsetFile(tmpItemsetFilename);
+//			fpcResult.printItemsets(fpcResult.getItemsetsCount());
+
+			return fpcResult;
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+
+	public Itemsets computeItemSet_Prepost(Itemsets input) {
+		try {
+			Utils.printItemsets(input, tmpTransactionFilename);
+			return this.computeItemSet_Prepost(tmpTransactionFilename);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+
+	public Itemsets computeItemSet_Prepost(LabeledTransactions input, AttributeIndex index) {
 		try {
 			index.printTransactionsItems(input, tmpTransactionFilename);
 			return this.computeItemSet_Relim(tmpTransactionFilename);
