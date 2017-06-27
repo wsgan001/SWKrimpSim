@@ -53,7 +53,7 @@ public class KrimpAlgorithm {
 
 		CodeTable result = CodeTable.createStandardCodeTable( _transactions); // CT ←Standard Code Table(D)
 		Collections.sort(_candidateCodes, CodeTable.standardCandidateOrderComparator); // Fo ←F in Standard Candidate Order
-		double resultSize = result.totalCompressedSize();
+		double resultSize = result.totalCompressedSizeWithVectors();
 
 //		logger.debug("CANDIDATE CODES");
 //		logger.debug(_candidateCodes);
@@ -61,11 +61,11 @@ public class KrimpAlgorithm {
 		Iterator<Itemset> itCandidates = this._candidateCodes.iterator();
 		while(itCandidates.hasNext()) {
 			Itemset candidate = itCandidates.next();
-			logger.debug("Trying to add: "+candidate);
+//			logger.debug("Trying to add: "+candidate);
 			CodeTable tmpCT = new CodeTable(result);
 			if(candidate.size() > 1 && ! tmpCT.contains(candidate)) { // F ∈ Fo \ I
 				tmpCT.addCode(candidate); // CTc ←(CT ∪ F)in Standard Cover Order
-				double candidateSize = tmpCT.totalCompressedSize();
+				double candidateSize = tmpCT.totalCompressedSizeWithVectors();
 //				logger.debug("candidateSize: "+candidateSize +" resultSize: "+resultSize); 
 				if(candidateSize < resultSize) { // if L(D,CTc)< L(D,CT) then
 					
@@ -75,13 +75,13 @@ public class KrimpAlgorithm {
 					} else {
 						result = postAcceptancePruning(tmpCT, result);
 						// we have to update the size 
-						resultSize = result.totalCompressedSize(); 
+						resultSize = result.totalCompressedSizeWithVectors(); 
 					}					
 					
 				}
 			}
 			else {
-				logger.debug(candidate+ " skipped");
+//				logger.debug(candidate+ " skipped");
 			}
 		}
 
@@ -126,13 +126,13 @@ public class KrimpAlgorithm {
 		double CTpSize = -1; 
 		Itemset pruneCandidate = null;
 		
-		CTcSize = CTc.totalCompressedSize(); 
+		CTcSize = CTc.totalCompressedSizeWithVectors(); 
 		while (!pruneSet.isEmpty()) {
 			pruneCandidate = findLowestUsageCode (pruneSet, CTc);		
 			pruneSet.remove(pruneCandidate); 
 			CTp = new CodeTable(CTc); 
 			CTp.removeCode(pruneCandidate);
-			CTpSize = CTp.totalCompressedSize(); 
+			CTpSize = CTp.totalCompressedSizeWithVectors(); 
 			if (CTpSize < CTcSize) {
 				pruneSet = pruneSet(CTp, CTc);
 				CTc = CTp; 

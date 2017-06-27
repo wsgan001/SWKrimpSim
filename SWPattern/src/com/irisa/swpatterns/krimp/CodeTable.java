@@ -8,7 +8,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.TreeSet;
 import java.util.function.Consumer;
-
 import org.apache.log4j.Logger;
 import com.irisa.swpatterns.data.AttributeIndex;
 import com.irisa.swpatterns.data.ItemsetSet;
@@ -21,21 +20,23 @@ import ca.pfv.spmf.patterns.itemset_array_integers_with_count.Itemset;
  *
  */
 public class CodeTable {
-	
+
 	private static Logger logger = Logger.getLogger(CodeTable.class);
 
-//	private AttributeIndex _index = null;
+	//	private AttributeIndex _index = null;
 	private HashMap<Integer, Integer> _supports = new HashMap<Integer, Integer>();
 	private ItemsetSet _transactions = null;
 	private ItemsetSet _codes = null;
 	private HashMap<Itemset, Integer> _itemsetUsage = new HashMap<Itemset, Integer>();
 	private HashMap<Itemset, Integer> _itemsetCode = new HashMap<Itemset, Integer>();
 	private long _usageTotal = 0;
-	private HashMap<Itemset, BitSet> _codeSupportVector = new HashMap<Itemset, BitSet>();
-	
+	private HashMap<Itemset, BitSet> _codeSupportMap = new HashMap<Itemset, BitSet>();
+	private HashMap<Itemset, BitSet> _codeBitSetMap = new HashMap<Itemset, BitSet>();
+	private HashMap<Itemset, BitSet> _codeUsageMap = new HashMap<Itemset, BitSet>();
+
 	private boolean _standardFlag = false; // Set true if it is the standard codetable
 	private CodeTable _standardCT = null; // Codetable containing only singletons for the coding length of a CT
-	
+
 	/**
 	 * Initialization of the usages and codes indices
 	 * @param index
@@ -45,7 +46,7 @@ public class CodeTable {
 	public CodeTable(ItemsetSet transactions, ItemsetSet codes) {
 		this(transactions, codes, false);
 	}
-	
+
 	protected CodeTable(ItemsetSet transactions, ItemsetSet codes, boolean standardFlag) {
 		_transactions = transactions;
 		if(codes == null) {
@@ -54,7 +55,7 @@ public class CodeTable {
 			_codes = new ItemsetSet(codes);
 		}
 		_standardFlag = standardFlag;
-		
+
 		if(codes != null) {
 			_standardCT = CodeTable.createStandardCodeTable(/*index,*/ transactions);
 		} else { // this is a standard codetable
@@ -63,21 +64,12 @@ public class CodeTable {
 		}
 		init();	
 	}
-	
-	private void init() {
-		initSupports();
-		initializeSingletons();
-		initCodes();
-		countUsages();	
-		Collections.sort(_codes, standardCandidateOrderComparator);	
-	}
-	
+
 	public static CodeTable createStandardCodeTable(ItemsetSet transactions) {
 		return new CodeTable(transactions, null, true);
 	}
-	
+
 	public CodeTable(CodeTable ct) {
-//		_index = ct._index;
 		_supports = new HashMap<Integer, Integer>(ct._supports);
 		_transactions = new ItemsetSet(ct._transactions);
 		_codes = new ItemsetSet(ct._codes);
@@ -85,22 +77,79 @@ public class CodeTable {
 		_itemsetCode = new HashMap<Itemset, Integer>(ct._itemsetCode);
 		_usageTotal = ct._usageTotal;
 		_standardFlag = ct._standardFlag;
-		_codeSupportVector = new HashMap<Itemset, BitSet>(ct._codeSupportVector);
-		
+		_codeSupportMap = new HashMap<Itemset, BitSet>(ct._codeSupportMap);
+		_codeUsageMap = new HashMap<Itemset, BitSet>(ct._codeUsageMap);
+		_codeBitSetMap = new HashMap<Itemset, BitSet>(ct._codeBitSetMap);
+
 		_standardCT = ct._standardCT;
+	}
+
+	private void init() {
+		initSupportVectors();
+		initSupports();
+		initializeSingletons();
+		initCodes();
+		countUsages();
+		Collections.sort(_codes, standardCandidateOrderComparator);	
+	}
+
+	/**
+	 * Fill the support vectors according to the transactions
+	 */
+	private void initSupportVectors() {
+		//		logger.debug("init support vectors");
+		// Init singletons
+		for(int iTrans = 0; iTrans < this._transactions.size(); iTrans++) {
+			for(int iItem = 0; iItem < this._transactions.get(iTrans).size() ; iItem++) {
+				int item = this._transactions.get(iTrans).get(iItem);
+				Itemset itemcode = createCodeSingleton(item);
+				if(this._codeSupportMap.get(itemcode) == null) {
+					this._codeSupportMap.put(itemcode, new BitSet(this._transactions.size()));
+				}
+				this._codeSupportMap.get(itemcode).set(iTrans);
+				this._codeBitSetMap.put(itemcode, new BitSet());
+				this._codeBitSetMap.get(itemcode).set(item);
+			}
+		}
+
+		//		logger.debug("init support vectors for codes");
+		// Init big codes
+		for(int iCode = 0; iCode < this._codes.size(); iCode++) {
+			Itemset code = this._codes.get(iCode);
+			initBitSetForCodes(code);
+		}
+		
+	}
+
+	/**
+	 * fill the support vector of one code > 1 by doing an "and" of the support vector of each item in the code
+	 * @param code
+	 */
+	private void initBitSetForCodes(Itemset code) {
+		if(code.size() > 1) {
+			// Recensing all transactions having at least one item in common
+			BitSet commonTrans = new BitSet(this._transactions.size());
+			commonTrans.set(0, commonTrans.size()-1);
+			for(int iCodeItem = 0; iCodeItem < code.size(); iCodeItem++ ) {
+				Itemset codeItemSingleton = createCodeSingleton(code.get(iCodeItem));
+				commonTrans.and(this._codeSupportMap.get(codeItemSingleton)); // Adding all potential transaction which have one item in common
+			}
+			this._codeSupportMap.put(code, commonTrans);
+			this._codeBitSetMap.put(code, this.itemSetToBItSet(code));
+		}
 	}
 
 	public ItemsetSet getTransactions() {
 		return _transactions;
 	}
-	
+
 	/**
 	 * Trigger reinitialization of the indexes
 	 * @param transactions
 	 */
 	public void setTransactions(ItemsetSet transactions) {
 		this._transactions = transactions;
-		
+
 		init();
 	}
 
@@ -110,11 +159,11 @@ public class CodeTable {
 	public Iterator<Itemset> codeIterator() {
 		return _codes.iterator();
 	}
-	
+
 	public ItemsetSet getCodes() {
 		return this._codes;
 	}
-	
+
 	/**
 	 * Create new indices for new codes, put the usage of each code to 0
 	 */
@@ -128,53 +177,51 @@ public class CodeTable {
 				if(_itemsetUsage.get(code) == null) {
 					_itemsetUsage.put(code, 0);
 				}
-				if(_codeSupportVector.get(code) == null) {
-					_codeSupportVector.put(code, new BitSet(_transactions.size()));
+				if(_codeSupportMap.get(code) == null) {
+					_codeSupportMap.put(code, new BitSet(_transactions.size()));
 				}
 			}
 		});
 	}
-	
+
 	private void initSupports() {
-		for(int iTrans = 0; iTrans < this._transactions.size(); iTrans++) {
-			Itemset trans = this._transactions.get(iTrans);
-			for(int i = 0; i < trans.size() ; i++) {
-				int item = trans.get(i);
-				if(_supports.get(item) == null) {
-					_supports.put(item, 0);
-				}
-				_supports.replace(item, _supports.get(item) + 1);
-				
-				
-				Itemset itemcode = createCodeSingleton(item);
-				this._codeSupportVector.putIfAbsent(itemcode, new BitSet(this._transactions.size()));
-				this._codeSupportVector.get(itemcode).set(iTrans);
-				
-				
-				for(int iCode = 0; iCode < this._codes.size(); iCode++) {
-					if(this._codes.get(iCode).size() > 0) {
-						_codeSupportVector.get(this._codes.get(iCode)).set(iTrans);
-					}
-				}
+		//		for(int iTrans = 0; iTrans < this._transactions.size(); iTrans++) {
+		//			Itemset trans = this._transactions.get(iTrans);
+		//			for(int i = 0; i < trans.size() ; i++) {
+		//				int item = trans.get(i);
+		//				if(_supports.get(item) == null) {
+		//					_supports.put(item, 0);
+		//				}
+		//				_supports.replace(item, _supports.get(item) + 1);
+		//				
+		//			}
+		//		}
+
+		// Don't have to iterate over transactions anymore !
+		Iterator<Itemset> itCode = this._codeSupportMap.keySet().iterator();
+		while(itCode.hasNext()) {
+			Itemset code = itCode.next();
+			if(code.size() == 1) {
+				this._supports.put(code.getLastItem(), this._codeSupportMap.get(code).cardinality());
 			}
 		}
 	}
-	
+
 	public int getUsage(Itemset is) {
 		if(this._itemsetUsage.get(is) == null) {
 			return 0;
 		}
 		return this._itemsetUsage.get(is);
 	}
-	
+
 	public Integer getCodeIndice(Itemset is) {
 		return this._itemsetCode.get(is);
 	}
-	
+
 	public double probabilisticDistrib(Itemset code) {
 		return (double) this.getUsage(code) / (double) this._usageTotal;
 	}
-	
+
 	/**
 	 * L(code_CT(X))
 	 * @param code
@@ -183,7 +230,7 @@ public class CodeTable {
 	public double codeLengthOfcode(Itemset code) {
 		return - Math.log(this.probabilisticDistrib(code));
 	}
-	
+
 	/**
 	 * L(t | CT)  [Dirty version]
 	 * @param transaction
@@ -193,21 +240,33 @@ public class CodeTable {
 	public double encodedTransactionCodeLength(Itemset transaction) throws LogicException {
 		double result = 0.0;
 		Iterator<Itemset> itCodes = this.codeIterator();
-//		logger.debug("encodingTransaction: "+transaction);
 		while(itCodes.hasNext()) {
 			Itemset code = itCodes.next();
 			if(this.getUsage(code) > 0 && isCover(transaction, code) ) {
-//				logger.debug("coveredBy: "+code);
 				result += codeLengthOfcode(code);
-				if(result == Double.NEGATIVE_INFINITY || result == Double.POSITIVE_INFINITY) {
-					throw new LogicException( "INFINITY: " + transaction + " code: " + code + " usage: " + this.getUsage(code) + " cover ?: " + this.isCover(transaction, code)); // If the code is cover, it shouldn't have an usage = 0
-				}
-//				logger.debug("newLength: "+result);
 			}
 		}
 		return result;
 	}
-	
+
+	/**
+	 * L(t | CT)  [Vector version]
+	 * @param transaction
+	 * @return
+	 * @throws LogicException 
+	 */
+	public double encodedTransactionCodeLengthWithVectors(int transactionIndex) throws LogicException {
+		double result = 0.0;
+		Iterator<Itemset> itCodes = this.codeIterator();
+		while(itCodes.hasNext()) {
+			Itemset code = itCodes.next();
+			if(this.getUsage(code) > 0 && this._codeUsageMap.get(code).get(transactionIndex)) {
+				result += codeLengthOfcode(code);
+			}
+		}
+		return result;
+	}
+
 	/**
 	 * L(D | CT)
 	 * @return
@@ -218,13 +277,27 @@ public class CodeTable {
 		Iterator<Itemset> itTrans = this._transactions.iterator();
 		while(itTrans.hasNext()) {
 			Itemset trans = itTrans.next();
-			
+
 			result += this.encodedTransactionCodeLength(trans);
 		}
-		
+
 		return result;
 	}
-	
+
+	/**
+	 * L(D | CT)
+	 * @return
+	 * @throws LogicException 
+	 */
+	public double encodedTransactionSetCodeLengthWithVectors() throws LogicException {
+		double result = 0.0;
+		for(int iTrans = 0; iTrans < this._transactions.size(); iTrans++) {
+			result += this.encodedTransactionCodeLengthWithVectors(iTrans);
+		}
+
+		return result;
+	}
+
 	/**
 	 * L(CT|D)
 	 * @return
@@ -237,30 +310,30 @@ public class CodeTable {
 			if(this.getUsage(code) != 0.0) {
 				// CB: this is the code length according to the CT
 				double cL = codeLengthOfcode(code);
-				
+
 				// CB: we also need the code length according to the ST: we codify the codeusing it
 				double stcL = 0 ;
 				if (!_standardFlag) {
 					stcL = this._standardCT.codeLengthOfCodeAccordingST(code);
 				}
 				// else => it is a 0.0
-				
-//				if(code.size() == 1 && ! this._standardFlag) {
-//					stcL = this._standardCT.codeLengthOfcode(code);
-//				} else if(this._standardFlag) {
-//					stcL = cL;
-//				}
-				
+
+				//				if(code.size() == 1 && ! this._standardFlag) {
+				//					stcL = this._standardCT.codeLengthOfcode(code);
+				//				} else if(this._standardFlag) {
+				//					stcL = cL;
+				//				}
+
 				result += cL + stcL;
 			}
 		}
 		return result;
 	}
-	
+
 	/** 
 	 * L(code_ST(X))
 	 */
-	
+
 	public double codeLengthOfCodeAccordingST(Itemset code) {
 		double result = 0.0;
 		// this method should return 0 if the codetable is not the ST
@@ -271,7 +344,7 @@ public class CodeTable {
 		}
 		return result; 
 	}
-	
+
 	/**
 	 * L(D, CT)
 	 * @return
@@ -280,8 +353,20 @@ public class CodeTable {
 	public double totalCompressedSize() throws LogicException {
 		double ctL = codeTableCodeLength();
 		double teL = encodedTransactionSetCodeLength();
-//		logger.debug("CodeTable Length: " + ctL + " transactionLength: " + teL);
+		logger.debug("CodeTable Length: " + ctL + " transactionLength: " + teL);
 		return ctL + teL;
+	}
+
+	/**
+	 * L(D, CT)
+	 * @return
+	 * @throws LogicException 
+	 */
+	public double totalCompressedSizeWithVectors() throws LogicException {
+		double ctL = codeTableCodeLength();
+		double telVec = encodedTransactionSetCodeLengthWithVectors();
+//		logger.debug("CodeTable Length: " + ctL + " transactionLength: " + telVec);
+		return ctL + telVec;
 	}
 
 	/**
@@ -291,7 +376,7 @@ public class CodeTable {
 		Iterator<Integer> itItems = _supports.keySet().iterator();
 		while(itItems.hasNext()) {
 			Integer item = itItems.next();
-			
+
 			Itemset single = new Itemset(item);
 			single.setAbsoluteSupport(_supports.get(item));
 			if(this._codes.contains(single)) {
@@ -304,34 +389,35 @@ public class CodeTable {
 			this._codes.addItemset(single);
 		}
 	}
-	
+
 	/**
 	 * Initialize the usage of each code according to the cover
 	 */
 	protected void countUsages() {
 		this._usageTotal = 0;
 		Collections.sort(this._codes, CodeTable.standardCoverOrderComparator);
-		
+
 		Iterator<Itemset> itCodes = this.codeIterator();
 		while(itCodes.hasNext()) {
 			Itemset code = itCodes.next();
-			
+
 			_itemsetUsage.replace(code, 0);
-			
-				_transactions.forEach(new Consumer<Itemset>(){
-					@Override
-					public void accept(Itemset trans) {
-						if(isCover(trans, code)) {
-							_itemsetUsage.replace(code, _itemsetUsage.get(code) +1);
-						}
-					}
-				});
-			
+			this._codeUsageMap.put(code, new BitSet(this._transactions.size()));
+
+			for(int iTrans = 0; iTrans < this._transactions.size(); iTrans++) {
+				Itemset trans = this._transactions.get(iTrans);
+//				if(isCover(trans, code)) {
+				if(isCoverWithVectors(iTrans, code)) {
+					_itemsetUsage.replace(code, _itemsetUsage.get(code) +1);
+					_codeUsageMap.get(code).set(iTrans);
+				}
+			}
+
 			this._usageTotal += _itemsetUsage.get(code);
 		}
 		Collections.sort(this._codes, CodeTable.standardCandidateOrderComparator);
 	}
-	
+
 	/**
 	 * Comparator to sort the code list
 	 */
@@ -352,7 +438,7 @@ public class CodeTable {
 			return 0;
 		}
 	};
-	
+
 	/**
 	 * Comparator to sort the code list
 	 */
@@ -373,7 +459,7 @@ public class CodeTable {
 			return 0;
 		}
 	};
-	
+
 	/**
 	 * fast check for basic conditions to be a cover of a transaction
 	 * @param trans transaction
@@ -383,7 +469,7 @@ public class CodeTable {
 	private boolean isCoverCandidate(Itemset trans, Itemset code) {
 		return ( code.size() <= trans.size()  && ( trans.containsAll(code)));
 	}
-	
+
 	/**
 	 * 
 	 * @param trans transaction
@@ -396,7 +482,7 @@ public class CodeTable {
 			Itemset tmpCode = null;
 			while(itIs.hasNext()) {
 				tmpCode = itIs.next();
-				
+
 				if(isCoverCandidate(trans, tmpCode)) { // If the size of code is correct and it is contained in trans
 					if(tmpCode.isEqualTo(code)) { // if code cover = OK
 						return true;
@@ -408,24 +494,82 @@ public class CodeTable {
 					}
 				}
 			}
-			
+
+		}
+		return false;
+	}
+
+	/**
+	 * With vectors
+	 * @param trans transaction
+	 * @param code code from the codetable
+	 * @return true if the code is part of the transaction cover
+	 */
+	public boolean isCoverWithVectors(int transIndex, Itemset code) {
+//		logger.debug("isCover( " + transIndex + " , " + code + " )");
+		if(isCoverCandidateWithVectors(transIndex, code)) {
+			Iterator<Itemset> itCode = codeIterator();
+			return isCoverWithVectors(transIndex, itemSetToBItSet(code), itCode, new BitSet(this._supports.size()));
 		}
 		return false;
 	}
 	
+	public boolean isCoverWithVectors(int transIndex, BitSet codeBS, Iterator<Itemset> itCode, BitSet codeMask) {
+		Itemset tmpCode = null;
+		while(itCode.hasNext()) {
+			tmpCode = itCode.next();
+			BitSet tmpCodeBS = this.itemSetToBItSet(tmpCode);
+//			logger.debug("isCover( " + transIndex + " , " + codeBS + " , " + codeMask + " ) " + tmpCode);
+			if(isCoverCandidateWithVectors(transIndex, tmpCode)) { // If the size of code is correct and it is contained in trans
+				if(tmpCodeBS.equals(codeBS)) { // if code cover = OK
+					return true;
+				} else if (tmpCodeBS.intersects(codeBS)) { // if another cover code overlap with code = !OK
+					return false;
+				} else if(codeMask.intersects(tmpCodeBS)) { // Can't have to overlapping codes in the same transaction cover
+					continue;
+				} else { // transaction partially covered but there is still some chances
+					codeMask.or(tmpCodeBS); // tmpCode is cover
+					return isCoverWithVectors(transIndex, codeBS, itCode, codeMask); 
+				}
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * fast check for basic conditions to be a cover of a transaction (With vector)
+	 * @param trans transaction
+	 * @param code code
+	 * @return true if code is smaller or equal and contained in the transaction
+	 */
+	private boolean isCoverCandidateWithVectors(int transIndex, Itemset code) {
+		return this._codeSupportMap.get(code).get(transIndex);
+	}
+	
+	private BitSet itemSetToBItSet(Itemset code) {
+		BitSet codesBitSet = new BitSet(this._supports.size());
+		for(int i = 0; i < code.size(); i++) {
+			codesBitSet.set(code.get(i));
+		}
+		return codesBitSet;
+	}
+
 	public void removeCode(Itemset code) {
 		this._codes.remove(code);
 		this._itemsetCode.remove(code);
 		this._itemsetUsage.remove(code);
-		
+		this._codeBitSetMap.remove(code);
+		this._codeSupportMap.remove(code);
+		this._codeUsageMap.remove(code);
+
 		countUsages(); // Have to maintain the thing up to date ? 
-		
+
 	}
-	
+
 	public boolean contains(Itemset code) {
 		return this._codes.contains(code);
 	}
-	
+
 	/**
 	 * Supposed to be a new code
 	 * @param code
@@ -433,7 +577,7 @@ public class CodeTable {
 	public void addCode(Itemset code) {
 		this.addCode(code, AttributeIndex.getAttributeNumber());
 	}
-	
+
 	/**
 	 * Add a code and its already existing indice
 	 * @param code
@@ -444,11 +588,13 @@ public class CodeTable {
 			this._codes.add(code);
 			this._itemsetCode.put(code, indice);
 			this._itemsetUsage.put(code, this.getUsage(code));
+			this._codeSupportMap.put(code, new BitSet(this._transactions.size()));
 
+			this.initBitSetForCodes(code);
 			this.countUsages(); // maintain the usage index uptodate ?
 		}
 	}
-	
+
 	public static Itemset itemsetAddition(Itemset iSet, Itemset added) {
 		TreeSet<Integer> tmpBaseSet = new TreeSet<Integer>();
 		for(int i = 0; i < iSet.getItems().length; i++) {
@@ -459,10 +605,10 @@ public class CodeTable {
 			tmpAddedSet.add(added.get(i));
 		}
 		tmpBaseSet.addAll(tmpAddedSet);
-		
+
 		return new Itemset(new ArrayList<Integer>(tmpBaseSet), iSet.getAbsoluteSupport());
 	}
-	
+
 	public static Itemset itemsetSubstraction(Itemset iSet, Itemset substracted) {
 		TreeSet<Integer> tmpBaseSet = new TreeSet<Integer>();
 		for(int i = 0; i < iSet.getItems().length; i++) {
@@ -473,14 +619,14 @@ public class CodeTable {
 			tmpSubstractedSet.add(substracted.get(i));
 		}
 		tmpBaseSet.removeAll(tmpSubstractedSet);
-		
+
 		return new Itemset(new ArrayList<Integer>(tmpBaseSet), iSet.getAbsoluteSupport());
 	}
-	
+
 	public static Itemset createCodeSingleton(int codeNum) {
 		return new Itemset(codeNum);
 	}
-	
+
 	public String toString() {
 		Collections.sort(this._codes, new Comparator<Itemset>(){
 			@Override
@@ -488,7 +634,7 @@ public class CodeTable {
 				return - Integer.compare(o1.size(), o2.size());
 			}
 		});
-		
+
 		// StringBuilder copied from smpf code, just to see ...
 		StringBuilder r = new StringBuilder ();
 		r.append("Total Usages: ");
@@ -508,9 +654,9 @@ public class CodeTable {
 			r.append(this.codeLengthOfcode(is));
 			r.append('\n');
 		}
-		
+
 		Collections.sort(this._codes, CodeTable.standardCandidateOrderComparator);
 		return r.toString();
 	}
-	
+
 }
