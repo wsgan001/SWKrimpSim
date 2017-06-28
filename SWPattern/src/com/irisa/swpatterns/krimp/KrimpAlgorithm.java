@@ -53,7 +53,7 @@ public class KrimpAlgorithm {
 
 		CodeTable result = CodeTable.createStandardCodeTable( _transactions); // CT ←Standard Code Table(D)
 		Collections.sort(_candidateCodes, CodeTable.standardCandidateOrderComparator); // Fo ←F in Standard Candidate Order
-		double resultSize = result.totalCompressedSizeWithVectors();
+		double resultSize = result.totalCompressedSize();
 
 //		logger.debug("CANDIDATE CODES");
 //		logger.debug(_candidateCodes);
@@ -65,7 +65,7 @@ public class KrimpAlgorithm {
 			CodeTable tmpCT = new CodeTable(result);
 			if(candidate.size() > 1 && ! tmpCT.contains(candidate)) { // F ∈ Fo \ I
 				tmpCT.addCode(candidate); // CTc ←(CT ∪ F)in Standard Cover Order
-				double candidateSize = tmpCT.totalCompressedSizeWithVectors();
+				double candidateSize = tmpCT.totalCompressedSize();
 //				logger.debug("candidateSize: "+candidateSize +" resultSize: "+resultSize); 
 				if(candidateSize < resultSize) { // if L(D,CTc)< L(D,CT) then
 					
@@ -75,7 +75,7 @@ public class KrimpAlgorithm {
 					} else {
 						result = postAcceptancePruning(tmpCT, result);
 						// we have to update the size 
-						resultSize = result.totalCompressedSizeWithVectors(); 
+						resultSize = result.totalCompressedSize(); 
 					}					
 					
 				}
@@ -126,13 +126,13 @@ public class KrimpAlgorithm {
 		double CTpSize = -1; 
 		Itemset pruneCandidate = null;
 		
-		CTcSize = CTc.totalCompressedSizeWithVectors(); 
+		CTcSize = CTc.totalCompressedSize(); 
 		while (!pruneSet.isEmpty()) {
 			pruneCandidate = findLowestUsageCode (pruneSet, CTc);		
 			pruneSet.remove(pruneCandidate); 
 			CTp = new CodeTable(CTc); 
 			CTp.removeCode(pruneCandidate);
-			CTpSize = CTp.totalCompressedSizeWithVectors(); 
+			CTpSize = CTp.totalCompressedSize(); 
 			if (CTpSize < CTcSize) {
 				pruneSet = pruneSet(CTp, CTc);
 				CTc = CTp; 

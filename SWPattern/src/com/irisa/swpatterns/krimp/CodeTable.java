@@ -36,6 +36,8 @@ public class CodeTable {
 
 	private boolean _standardFlag = false; // Set true if it is the standard codetable
 	private CodeTable _standardCT = null; // Codetable containing only singletons for the coding length of a CT
+	
+	private boolean _useVector = true;
 
 	/**
 	 * Initialization of the usages and codes indices
@@ -90,7 +92,6 @@ public class CodeTable {
 		initializeSingletons();
 		initCodes();
 		countUsages();
-		Collections.sort(_codes, standardCandidateOrderComparator);	
 	}
 
 	/**
@@ -157,7 +158,9 @@ public class CodeTable {
 	 * @return Iterator over a sorted temporary copy of the itemset list of the code table
 	 */
 	public Iterator<Itemset> codeIterator() {
-		return _codes.iterator();
+		ItemsetSet tmpCodes = new ItemsetSet(this._codes);
+		Collections.sort(tmpCodes, standardCandidateOrderComparator);
+		return tmpCodes.iterator();
 	}
 
 	public ItemsetSet getCodes() {
@@ -351,9 +354,12 @@ public class CodeTable {
 	 * @throws LogicException 
 	 */
 	public double totalCompressedSize() throws LogicException {
+		if(this._useVector) {
+			return totalCompressedSizeWithVectors();
+		}
 		double ctL = codeTableCodeLength();
 		double teL = encodedTransactionSetCodeLength();
-		logger.debug("CodeTable Length: " + ctL + " transactionLength: " + teL);
+//		logger.debug("CodeTable Length: " + ctL + " transactionLength: " + teL);
 		return ctL + teL;
 	}
 
@@ -362,10 +368,11 @@ public class CodeTable {
 	 * @return
 	 * @throws LogicException 
 	 */
-	public double totalCompressedSizeWithVectors() throws LogicException {
+	private double totalCompressedSizeWithVectors() throws LogicException {
+		logger.debug("totalCompressedSizeWithVectors ");
 		double ctL = codeTableCodeLength();
 		double telVec = encodedTransactionSetCodeLengthWithVectors();
-//		logger.debug("CodeTable Length: " + ctL + " transactionLength: " + telVec);
+		logger.debug("totalCompressedSizeWithVectors, CodeTable Length: " + ctL + " transactionLength: " + telVec);
 		return ctL + telVec;
 	}
 
@@ -394,6 +401,7 @@ public class CodeTable {
 	 * Initialize the usage of each code according to the cover
 	 */
 	protected void countUsages() {
+		logger.debug("countUsages");
 		this._usageTotal = 0;
 		Collections.sort(this._codes, CodeTable.standardCoverOrderComparator);
 
@@ -404,18 +412,17 @@ public class CodeTable {
 			_itemsetUsage.replace(code, 0);
 			this._codeUsageMap.put(code, new BitSet(this._transactions.size()));
 
-			for(int iTrans = 0; iTrans < this._transactions.size(); iTrans++) {
-//				Itemset trans = this._transactions.get(iTrans);
-//				if(isCover(trans, code)) {
+			int iTrans = 0;
+			while(this._codeSupportMap.get(code).nextSetBit(iTrans) > -1) {
 				if(isCoverWithVectors(iTrans, code)) {
 					_itemsetUsage.replace(code, _itemsetUsage.get(code) +1);
 					_codeUsageMap.get(code).set(iTrans);
 				}
+				iTrans = this._codeSupportMap.get(code).nextSetBit(iTrans)+1;
 			}
 
 			this._usageTotal += _itemsetUsage.get(code);
 		}
-		Collections.sort(this._codes, CodeTable.standardCandidateOrderComparator);
 	}
 
 	/**
@@ -505,7 +512,7 @@ public class CodeTable {
 	 * @param code code from the codetable
 	 * @return true if the code is part of the transaction cover
 	 */
-	public boolean isCoverWithVectors(int transIndex, Itemset code) {
+	private boolean isCoverWithVectors(int transIndex, Itemset code) {
 //		logger.debug("isCover( " + transIndex + " , " + code + " )");
 		if(isCoverCandidateWithVectors(transIndex, code)) {
 			Iterator<Itemset> itCode = codeIterator();
@@ -514,7 +521,7 @@ public class CodeTable {
 		return false;
 	}
 	
-	public boolean isCoverWithVectors(int transIndex, BitSet codeBS, Iterator<Itemset> itCode, BitSet codeMask) {
+	private boolean isCoverWithVectors(int transIndex, BitSet codeBS, Iterator<Itemset> itCode, BitSet codeMask) {
 		Itemset tmpCode = null;
 		while(itCode.hasNext()) {
 			tmpCode = itCode.next();
@@ -640,7 +647,7 @@ public class CodeTable {
 		r.append("Total Usages: ");
 		r.append(this._usageTotal);
 		r.append('\n');
-		Iterator<Itemset> itIs = this.codeIterator();
+		Iterator<Itemset> itIs = this._codes.iterator();
 		while(itIs.hasNext()) {
 			Itemset is = itIs.next();
 			r.append('[');
@@ -655,8 +662,16 @@ public class CodeTable {
 			r.append('\n');
 		}
 
-		Collections.sort(this._codes, CodeTable.standardCandidateOrderComparator);
+		Collections.sort(this._codes, CodeTable.standardCoverOrderComparator);
 		return r.toString();
+	}
+
+	public boolean useVector() {
+		return _useVector;
+	}
+
+	public void setUseVector(boolean _useVector) {
+		this._useVector = _useVector;
 	}
 
 }
