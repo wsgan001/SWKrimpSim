@@ -152,9 +152,8 @@ public class AttributeIndex {
 
 	/**
 	 * Print the transaction in the format expected by SPMF (int separated by spaces). Will update the attribute/item indexes
-	 * @param attributes Set of all attributes appearing in the descriptions
 	 * @param transactions
-	 * @param output
+	 * @param output filename
 	 * @return
 	 * @throws Exception 
 	 */

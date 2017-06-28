@@ -143,6 +143,10 @@ public class FrequentItemSetExtractor {
 		this._algo = ALGORITHM.FIN;
 	}
 
+	public void setAlgoPrepost() {
+		this._algo = ALGORITHM.PrePost;
+	}
+
 	public Itemsets computeItemSet_FPClose(LabeledTransactions transactions, AttributeIndex index) {
 		try {
 			index.printTransactionsItems(transactions, tmpTransactionFilename);
@@ -240,7 +244,7 @@ public class FrequentItemSetExtractor {
 		try {
 			PrePost algoFpc = new PrePost();
 			algoFpc.setUsePrePostPlus(true);
-			logger.debug("Relim Algorithm");
+			logger.debug("PrePost+ Algorithm");
 			Itemsets fpcResult;
 			algoFpc.runAlgorithm(input, 0.0, tmpItemsetFilename);
 			fpcResult = Utils.readItemsetFile(tmpItemsetFilename);

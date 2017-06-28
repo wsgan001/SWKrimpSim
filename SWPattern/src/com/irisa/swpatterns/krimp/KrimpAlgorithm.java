@@ -186,6 +186,7 @@ public class KrimpAlgorithm {
 		options.addOption("FPMax", false, "Use FPMax algorithm.");
 		options.addOption("FIN", false, "Use FIN algorithm.");
 		options.addOption("Relim", false, "Use Relim algorithm.");
+		options.addOption("PrePost", false, "Use PrePost algorithm.");
 		options.addOption("class", true, "Class of the studied individuals.");
 		options.addOption("rank1", false, "Extract informations up to rank 1 (types, out-going and in-going properties and object types), default is only types, out-going and in-going properties.");
 		options.addOption("transactionFile", false, "Only create a .dat transaction for each given file.");
@@ -239,6 +240,9 @@ public class KrimpAlgorithm {
 				if(cmd.hasOption("Relim")) {
 					fsExtractor.setAlgoRelim();
 				}
+				if(cmd.hasOption("PrePost")) {
+					fsExtractor.setAlgoPrepost();
+				}
 				converter.setRankOne(cmd.hasOption("rank1") || converter.isRankOne());
 				logger.debug("output: " + output + " limit:" + limitString + " resultWindow:" + resultWindow + " classpattern:" + classRegex + " noType:" + converter.noTypeTriples() + " noOut:" + converter.noOutTriples() + " noIn:"+ converter.noInTriples());
 				logger.debug("Pruning activated: "+activatePruning);
@@ -289,20 +293,15 @@ public class KrimpAlgorithm {
 
 					// Printing transactions
 					if(cmd.hasOption("transactionFile")) {
+						logger.debug("Transaction printed to " + filename + ".dat");
 						index.printTransactionsItems(transactions, filename + ".dat");
 
-						if(cmd.hasOption("otherFile")) {
-							index.printTransactionsItems(transactions, otherFilename + ".dat");
-						}
 					}
 
 					realtransactions = index.convertToTransactions(transactions);
 					codes = fsExtractor.computeItemsets(transactions, index);
 					logger.debug("Nb Lines: " + realtransactions.size());
 
-					if(cmd.hasOption("transactionFile")) {
-						index.printTransactionsItems(transactions, filename + ".dat");
-					}
 					logger.debug("Nb items: " + converter.getIndex().size());
 
 					baseRDF.close();
@@ -359,6 +358,7 @@ public class KrimpAlgorithm {
 
 
 						if(cmd.hasOption("transactionFile")) {
+							logger.debug("Transaction printed to " + otherFilename + ".dat");
 							converter.getIndex().printTransactionsItems(otherTransactions, otherFilename + ".dat");
 						}
 					}

@@ -405,7 +405,7 @@ public class CodeTable {
 			this._codeUsageMap.put(code, new BitSet(this._transactions.size()));
 
 			for(int iTrans = 0; iTrans < this._transactions.size(); iTrans++) {
-				Itemset trans = this._transactions.get(iTrans);
+//				Itemset trans = this._transactions.get(iTrans);
 //				if(isCover(trans, code)) {
 				if(isCoverWithVectors(iTrans, code)) {
 					_itemsetUsage.replace(code, _itemsetUsage.get(code) +1);
