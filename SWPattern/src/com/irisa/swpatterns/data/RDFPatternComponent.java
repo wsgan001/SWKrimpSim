@@ -24,6 +24,7 @@ public abstract class RDFPatternComponent {
 		OUT_PROPERTY, // Property resource of an out-going triple alone
 		OUT_NEIGHBOUR_TYPE, // Property and type of the object of an out-going triple
 		OUT_NEIGHBOUR, // Property and object of an out-going triple
+		OUT_VALUE, // Literal or named resource used as property value
 		IN_NEIGHBOUR_TYPE, // Property and type of the subject of an in-going triple
 		IN_NEIGHBOUR, // Property and subject of an in-going triple
 		// For Paths
@@ -51,8 +52,16 @@ public abstract class RDFPatternComponent {
 		this._type = type;
 	}
 	
+	protected RDFPatternComponent(Type type) {
+		this._type = type;
+	}
+	
 	protected RDFPatternElement getElement() {
 		return this._element;
+	}
+	
+	protected void setElement(RDFPatternElement elem) {
+		this._element = elem;
 	}
 	
 	public Type getType() {
@@ -145,6 +154,10 @@ public abstract class RDFPatternComponent {
 					return 1;
 				} else if(o2.getType() == Type.OUT_NEIGHBOUR) {
 					return -1;
+				} else if(o1.getType() == Type.OUT_VALUE) {
+					return 1;	
+				} else if(o2.getType() == Type.OUT_VALUE) {
+					return -1;							
 				} else if(o1.getType() == Type.IN_NEIGHBOUR) {
 					return 1;
 				} else if(o2.getType() == Type.IN_NEIGHBOUR) {

@@ -1,12 +1,14 @@
 package com.irisa.swpatterns.data;
 
+import java.util.List;
+
 import org.apache.jena.rdf.model.Resource;
 import org.apache.log4j.Logger;
 
 import com.irisa.jenautils.Couple;
 
 /**
- * Encapsulate elements from Jena, either a resource or a couple of resources
+ * Encapsulate elements from Jena, either a resource or a couple of resources or a list of resources
  * @author pmaillot
  *
  */
@@ -16,6 +18,7 @@ public class RDFPatternElement {
 
 	private Resource _res = null;
 	private Couple<Resource, Resource> _couple = null;
+	private List<? extends Resource> _list = null;
 	
 	public RDFPatternElement(Resource r) {
 		this.setresource(r);
@@ -27,6 +30,10 @@ public class RDFPatternElement {
 	
 	public RDFPatternElement(Couple<Resource, Resource> couple) {
 		this.setCouple(couple);
+	}
+	
+	public RDFPatternElement(List<? extends Resource> l) {
+		this.setList(l);
 	}
 
 	public Couple<Resource, Resource> getCouple() {
@@ -45,6 +52,14 @@ public class RDFPatternElement {
 		this._res = _res;
 	}
 	
+	public List<? extends Resource> getList() {
+		return this._list;
+	}
+	
+	public void setList(List<? extends Resource> l) {
+		this._list = l;
+	}
+	
 	@Override
 	public String toString() {
 		if(this.getResource() != null) {
@@ -61,6 +76,8 @@ public class RDFPatternElement {
 			return this.getResource().toString().hashCode();
 		} else if(this.getCouple() != null) {
 			return this.getCouple().toString().hashCode();
+		} else if(this.getList() != null) {
+			return this.getList().toString().hashCode();
 		}
 		return 0;
 	}
@@ -74,6 +91,8 @@ public class RDFPatternElement {
 				return oelem.getResource().equals(this.getResource());
 			} else if(oelem.getCouple() != null && this.getCouple() != null) {
 				return oelem.getCouple().equals(this.getCouple());
+			} else if(oelem.getList() != null && this.getList() != null) {
+				return oelem.getList().equals(this.getList());
 			}
 		}
 		return false;

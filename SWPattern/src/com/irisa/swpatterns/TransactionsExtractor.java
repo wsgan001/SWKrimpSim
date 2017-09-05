@@ -1,5 +1,6 @@
 package com.irisa.swpatterns;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -22,10 +23,12 @@ import com.irisa.swpatterns.data.AttributeIndex;
 import com.irisa.swpatterns.data.RDFPatternComponent;
 import com.irisa.swpatterns.data.RDFPatternPathFragment;
 import com.irisa.swpatterns.data.RDFPatternResource;
+import com.irisa.swpatterns.data.RDFPatternValuePath;
 import com.irisa.swpatterns.data.LabeledTransaction;
 import com.irisa.swpatterns.data.RankUpQuery;
 import com.irisa.swpatterns.data.LabeledTransactions;
 import com.irisa.swpatterns.data.RDFPatternComponent.Type;
+import com.irisa.swpatterns.data.RDFPatternElement;
 
 /**
  * Deal with the transaction extraction. Give access to the patternComponent index for later compressions (Good idea ?).
@@ -49,9 +52,10 @@ public class TransactionsExtractor {
 	public enum Neighborhood {
 		Property,
 		PropertyAndType,
-		PropertyAndOther
+		PropertyAndOther,
+		PropertyAndValue
 	}
-	private Neighborhood _neighborLevel = Neighborhood.PropertyAndType;
+	private Neighborhood _neighborLevel = Neighborhood.PropertyAndValue;
 	
 	private int _pathsLength = 0;
 	
@@ -204,7 +208,7 @@ public class TransactionsExtractor {
 		if(this.getNeighborLevel() == Neighborhood.PropertyAndType || this.getNeighborLevel() == Neighborhood.PropertyAndOther) {
 			outTripQueryString += " ?ot " ;
 		}
-		if(this.getNeighborLevel() == Neighborhood.PropertyAndOther) {
+		if(this.getNeighborLevel() == Neighborhood.PropertyAndOther || this.getNeighborLevel() == Neighborhood.PropertyAndValue) {
 			outTripQueryString += " ?o " ;
 		}
 		outTripQueryString += " WHERE { <" + currIndiv + "> ?p ?o . ";
@@ -226,10 +230,21 @@ public class TransactionsExtractor {
 					indivResult.add(propAttribute);
 				
 					if(this.getNeighborLevel()== Neighborhood.PropertyAndOther 
+							|| this.getNeighborLevel() == Neighborhood.PropertyAndValue
 							&& queryResultLine.getResource("o") != null) {
 						Resource obj = queryResultLine.getResource("o");
-						if(! onto.isOntologyClassVocabulary(obj) && this._outliers.contains(obj)) {
-							RDFPatternComponent attributeOther = new RDFPatternResource(prop, RDFPatternResource.Type.OUT_NEIGHBOUR );
+						if(! onto.isOntologyClassVocabulary(obj)) {
+							if(this._outliers.contains(obj)) {
+								RDFPatternComponent attributeOther = new RDFPatternResource(prop, RDFPatternResource.Type.OUT_NEIGHBOUR );
+								if(! _index.contains(attributeOther)) {
+									_index.add(attributeOther);
+								}
+								indivResult.add(attributeOther);
+							}
+							ArrayList<Resource> list = new ArrayList<Resource>();
+							list.add(prop);
+							list.add(obj);
+							RDFPatternComponent attributeOther = new RDFPatternValuePath(list, RDFPatternResource.Type.OUT_VALUE );
 							if(! _index.contains(attributeOther)) {
 								_index.add(attributeOther);
 							}
