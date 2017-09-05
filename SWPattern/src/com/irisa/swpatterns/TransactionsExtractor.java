@@ -203,6 +203,7 @@ public class TransactionsExtractor {
 	private LabeledTransaction extractOutPropertyAttributeForIndividual(BaseRDF baseRDF, UtilOntology onto, Resource currIndiv) {
 
 		LabeledTransaction indivResult = new LabeledTransaction();
+		boolean blankNodeToExplore = false; // There are nested BN to be translated as property chains "We have to go deeper !"
 		
 		String outTripQueryString = "SELECT DISTINCT ?p "; 
 		if(this.getNeighborLevel() == Neighborhood.PropertyAndType || this.getNeighborLevel() == Neighborhood.PropertyAndOther) {
@@ -240,15 +241,18 @@ public class TransactionsExtractor {
 									_index.add(attributeOther);
 								}
 								indivResult.add(attributeOther);
+							} else if (! obj.isAnon()) {
+								ArrayList<Resource> list = new ArrayList<Resource>();
+								list.add(prop);
+								list.add(obj);
+								RDFPatternComponent attributeOther = new RDFPatternValuePath(list, RDFPatternResource.Type.OUT_VALUE );
+								if(! _index.contains(attributeOther)) {
+									_index.add(attributeOther);
+								}
+								indivResult.add(attributeOther);
+							} else {
+								blankNodeToExplore = true;
 							}
-							ArrayList<Resource> list = new ArrayList<Resource>();
-							list.add(prop);
-							list.add(obj);
-							RDFPatternComponent attributeOther = new RDFPatternValuePath(list, RDFPatternResource.Type.OUT_VALUE );
-							if(! _index.contains(attributeOther)) {
-								_index.add(attributeOther);
-							}
-							indivResult.add(attributeOther);
 						}
 					} 
 					if((this.getNeighborLevel() == Neighborhood.PropertyAndType 
@@ -272,10 +276,66 @@ public class TransactionsExtractor {
 			itOutResult.close();
 		}
 		
+		if(blankNodeToExplore) {
+			indivResult.addAll(extractOutPathsForIndividual(baseRDF, onto, currIndiv));
+		}
+		
 		return indivResult;
 	}
 	
 	
+	private Collection<RDFPatternComponent> extractOutPathsForIndividual(BaseRDF baseRDF, UtilOntology onto, Resource currIndiv) {
+		ArrayList<RDFPatternComponent> result = new ArrayList<RDFPatternComponent>();
+		
+		String outTripQueryString = "SELECT DISTINCT ?p "; 
+		if(this.getNeighborLevel() == Neighborhood.PropertyAndType || this.getNeighborLevel() == Neighborhood.PropertyAndOther) {
+			outTripQueryString += " ?ot " ;
+		}
+		if(this.getNeighborLevel() == Neighborhood.PropertyAndOther || this.getNeighborLevel() == Neighborhood.PropertyAndValue) {
+			outTripQueryString += " ?o " ;
+		}
+		outTripQueryString += " WHERE { <" + currIndiv + "> ?p ?o . ";
+		if(this.getNeighborLevel() == Neighborhood.PropertyAndType || this.getNeighborLevel() == Neighborhood.PropertyAndOther) {
+			outTripQueryString += " OPTIONAL { ?o a ?ot . } ";
+		}
+		outTripQueryString += " FILTER( isBlank(?o) ) } ";
+		
+		return result;
+	}
+	
+	private ArrayList<ArrayList<Resource> > extractPropertyChain(BaseRDF baseRDF, UtilOntology onto, Resource currIndiv, Collection<? extends Resource> previous) {
+		ArrayList<ArrayList<Resource> > result = new ArrayList<ArrayList<Resource> >();
+		
+		String propertyChainQueryString = "SELECT ?p ?o ";
+		propertyChainQueryString += " WHERE { <" + currIndiv + "> ?p ?o . ";
+		propertyChainQueryString += " } ";
+		QueryResultIterator itPathResult = new QueryResultIterator(propertyChainQueryString, baseRDF);
+		try {
+			while(itPathResult.hasNext()) {
+				CustomQuerySolution queryResultLine = itPathResult.nextAnswerSet();
+				Resource prop = queryResultLine.getResource("p");
+				Resource obj = queryResultLine.getResource("o");
+				if(obj.isAnon()) {
+					ArrayList<Resource> newPrevious = new ArrayList<Resource>(previous);
+					newPrevious.add(prop);
+					result.addAll(extractPropertyChain(baseRDF, onto, obj, newPrevious));
+				} else {
+					ArrayList<Resource> finalPath = new ArrayList<Resource>(previous);
+					finalPath.add(prop);
+					if(this.getNeighborLevel() == Neighborhood.PropertyAndValue) {
+						finalPath.add(obj);
+					}
+					result.add(finalPath);
+				}
+			}
+			
+		} finally {
+			itPathResult.close();
+		}
+		
+		return result;
+	}
+
 	public LabeledTransaction extractTransactionsForIndividual(BaseRDF baseRDF, UtilOntology onto, Resource currIndiv) {
 		LabeledTransaction indivResult = new LabeledTransaction();
 
