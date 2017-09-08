@@ -42,21 +42,11 @@ public class SWPatterns {
 		
 		// In/out options name to facilitate further references
 		String inputRDFOption = "inputRDF";
-		String inputTransactionOption = "inputTransaction";
-		String inputOtherRDFOption = "inputOtherRDF";
-		String inputOtherTransactionOption = "inputOtherTransaction";
 		String outputTransactionOption = "outputTransaction";
-		String inputCandidatesOption = "inputCandidates";
-		String inputOtherCandidatesOption = "inputOtherCandidates";
-		String outputCandidatesOption = "outputCandidates";
 		String inputCodeTableOption = "inputCodeTable";
-		String inputOtherCodeTableOption = "inputOtherCodeTable";
 		String outputCodeTableOption = "outputCodeTable";
 		String inputConversionIndexOption = "inputConversionIndex";
 		String outputConversionIndexOption = "outputConversionIndex";
-		
-		// CB: added to gather the results in CSV file
-		String outputComparisonResultsFileOption = "outputComparisonResultsFile"; 
 		
 		String PropertiesConversionOption = "nProperties";
 		String PropertiesAndTypesConversionOption = "nPropertiesAndTypes";
@@ -79,21 +69,11 @@ public class SWPatterns {
 		Options options = new Options();
 		// In/Out
 		options.addOption(inputRDFOption, true, "RDF file.");
-		options.addOption(inputTransactionOption, true, "Transaction file (RDF data will be ignored).");
-		options.addOption(inputOtherRDFOption, true, "Other RDF file to be compared to the first one.");
-		options.addOption(inputOtherTransactionOption, true, "Other transaction file (RDF data will be ignored) to be compared to the first one.");
 		options.addOption(outputTransactionOption, false, "Create a .dat transaction for each given RDF file named <filename>.<encoding>.dat .");
-		options.addOption(inputCandidatesOption, true, "File containing the candidate codes extracted for the first file.");
-		options.addOption(inputOtherCandidatesOption, true, "File containing the candidate codes extracted for the first file.");
-		options.addOption(outputCandidatesOption, false, "Create file containing the candidate codes extracted for the first file <filename>.<encoding>.candidates.dat.");
 		options.addOption(inputCodeTableOption, true, "Itemset file containing the KRIMP codetable for the first file.");
-		options.addOption(inputOtherCodeTableOption, true, "Itemset file containing the KRIMP codetable for the other file.");
 		options.addOption(outputCodeTableOption, false, "Create an Itemset file containing the  KRIMP codetable for each file <filename>.<encoding>.krimp.dat.");
 		options.addOption(inputConversionIndexOption, true, "Set the index used for RDF to transaction conversion, new items will be added.");
 		options.addOption(outputConversionIndexOption, true, "Create a file containing the index used for RDF to transaction conversion, new items will be added.");
-		
-		// CB: 
-		options.addOption(outputComparisonResultsFileOption, true, "File to add the output of the comparison to in CSV format."); 
 		
 		options.addOption("limit", true, "Limit to the number of individuals extracted from each class.");
 		options.addOption("resultWindow", true, "Size of the result window used to query RDF data.");
@@ -119,15 +99,7 @@ public class SWPatterns {
 				formatter.printHelp( "RDFtoTransactionConverter", options );
 			} else {
 				boolean inputRDF = cmd.hasOption(inputRDFOption);
-				boolean inputTransaction = cmd.hasOption(inputTransactionOption);
-				boolean inputOtherRDFFile = cmd.hasOption(inputOtherRDFOption);
-				boolean inputOtherTransaction = cmd.hasOption(inputOtherTransactionOption);
-				boolean inputOtherCodeTable = cmd.hasOption(inputOtherCodeTableOption);
-				boolean otherInput = inputOtherRDFFile || inputOtherTransaction || inputOtherCodeTable;
 				boolean outputTransaction = cmd.hasOption(outputTransactionOption);
-				boolean inputCandidatesCodes = cmd.hasOption(inputCandidatesOption);
-				boolean inputOtherCandidatesCodes = cmd.hasOption(inputOtherCandidatesOption);
-				boolean outputCandidatesCodes = cmd.hasOption(outputCandidatesOption);
 				boolean inputCodeTableCodes = cmd.hasOption(inputCodeTableOption);
 				boolean outputCodeTableCodes = cmd.hasOption(outputCodeTableOption);
 				boolean inputConversionIndex = cmd.hasOption(inputConversionIndexOption);
@@ -174,40 +146,22 @@ public class SWPatterns {
 				if(cmd.hasOption(PropertiesAndOthersConversionOption)) {
 					converter.setNeighborLevel(Neighborhood.PropertyAndOther);
 				}
+				converter.setNeighborLevel(Neighborhood.PropertyAndValue);
 				logger.debug("Pruning activated: "+activatePruning);
 				
 				// NO MODE cmd.hasOption() past this point
 	
 				String firstRDFFile = cmd.getOptionValue(inputRDFOption);
-				String otherRDFFile = cmd.getOptionValue(inputOtherRDFOption);
-				String firstTransactionFile = cmd.getOptionValue(inputTransactionOption);
-				String otherTransactionFile = cmd.getOptionValue(inputOtherTransactionOption);
-				String firstCandidatesFile = cmd.getOptionValue(inputCandidatesOption);
-				String otherCandidatesFile = cmd.getOptionValue(inputOtherCandidatesOption);
 				String firstKRIMPFile = cmd.getOptionValue(inputCodeTableOption);
-				String otherKRIMPFile = cmd.getOptionValue(inputOtherCodeTableOption);
 				String firstOutputFile = "";
-				String outputComparisonResultsFile = cmd.getOptionValue(outputComparisonResultsFileOption); 
 				
 				if(inputRDF) {
 					firstOutputFile = firstRDFFile;
-				} else if(inputTransaction) {
-					firstOutputFile = firstTransactionFile;
 				}
 				firstOutputFile += "." + converter.getNeighborLevel();
 				String firstOutputTransactionFile = firstOutputFile + ".dat";
 				String firstOutputCandidateFile = firstOutputFile + ".candidates.dat";
 				String firstOutputKRIMPFile = firstOutputFile + ".krimp.dat";
-				String otherOutputFile = "";
-				if(inputOtherRDFFile) {
-					otherOutputFile = otherRDFFile;
-				} else if(inputOtherTransaction) {
-					otherOutputFile = otherTransactionFile;
-				}
-				otherOutputFile += "." + converter.getNeighborLevel();
-				String otherOutputTransactionFile = otherOutputFile + ".dat";
-				String otherOutputCandidateFile = otherOutputFile + ".candidates.dat";
-				String otherOutputKRIMPFile = otherOutputFile + ".krimp.dat";
 				
 				String inputConversionIndexFile = cmd.getOptionValue(inputConversionIndexOption);
 				String outputConversionIndexFile = cmd.getOptionValue(outputConversionIndexOption);
@@ -221,7 +175,6 @@ public class SWPatterns {
 				String pathOption = cmd.getOptionValue("path");
 			
 				
-				if(! inputTransaction) {
 					if(limitString != null) {
 						QueryResultIterator.setDefaultLimit(Integer.valueOf(limitString));
 					}
@@ -266,36 +219,16 @@ public class SWPatterns {
 					// Printing transactions for both files
 					if(outputTransaction) {
 						index.printTransactionsItems(transactions, firstOutputTransactionFile);
-	
-						if(inputOtherRDFFile) {
-							index.printTransactionsItems(transactions, otherOutputTransactionFile);
-						}
 					}
 	
 					realtransactions = index.convertToTransactions(transactions);
-					if(! inputCandidatesCodes) {
 						codes = new ItemsetSet(fsExtractor.computeItemsets(transactions, index));
-					} else {
-						codes = Utils.readItemsetSetFile(cmd.getOptionValue(inputCandidatesOption));
-					}
 					logger.debug("Nb transactions: " + realtransactions.size());
 	
-					if(outputCandidatesCodes) {
-						index.printTransactionsItems(transactions, firstOutputCandidateFile);
-					}
 					logger.debug("Nb items: " + converter.getIndex().size());
 	
 					baseRDF.close();
-	
-				} else {
-					realtransactions = new ItemsetSet(Utils.readTransactionFile(cmd.getOptionValue(inputTransactionOption)));
-					if(! inputCandidatesCodes) {
-						codes = new ItemsetSet(fsExtractor.computeItemsets(realtransactions));
-					} else {
-						codes = Utils.readItemsetSetFile(inputCandidatesOption);
-					}
-					logger.debug("Nb Lines: " + realtransactions.size());
-				}
+
 				ItemsetSet realcodes = new ItemsetSet(codes);
 	
 				try {
@@ -323,143 +256,6 @@ public class SWPatterns {
 					logger.debug("First CompressedLength: " + compressedSize);
 					logger.debug("First Compression: " + (compressedSize / normalSize));
 	
-					if(otherInput) {
-	
-						ItemsetSet otherRealTransactions;
-						BaseRDF otherBase = new BaseRDF(otherRDFFile, MODE.LOCAL);
-						logger.debug("processing base of " + otherBase.size() + " triples.");
-						onto.init(otherBase);
-						if(! inputOtherTransaction) {
-							LabeledTransactions otherTransactions;
-							if(cmd.hasOption("class")) {
-								Resource classRes = onto.getModel().createResource(className);
-								otherTransactions = converter.extractTransactionsForClass(otherBase,  onto, classRes);
-							} else if(cmd.hasOption("path")) {
-								otherTransactions = converter.extractPathAttributes(otherBase,  onto);
-							} else {
-								otherTransactions = converter.extractTransactions(otherBase,  onto);
-							}
-							logger.debug("Other RDF transactions: " + otherTransactions.size() + " transactions");
-		
-							otherRealTransactions = converter.getIndex().convertToTransactions(otherTransactions);
-							if(outputTransaction) {
-								converter.getIndex().printTransactionsItems(otherTransactions, otherOutputTransactionFile);
-							}
-						} else {
-							otherRealTransactions = new ItemsetSet(Utils.readTransactionFile(otherTransactionFile));
-						}
-						logger.debug("Other final transactions: " + otherRealTransactions.size() + " transactions");
-						
-						DataIndexes otherAnalysis = new DataIndexes(otherRealTransactions);
-						standardCT = CodeTable.createStandardCodeTable(otherRealTransactions, otherAnalysis );
-						CodeTable otherKrimpCT ;
-						if(! inputOtherCodeTable) {
-							ItemsetSet otherCandidates;
-							if(inputOtherCandidatesCodes) {
-								otherCandidates = Utils.readItemsetSetFile(otherCandidatesFile);
-							} else {
-								otherCandidates = new ItemsetSet(fsExtractor.computeItemsets(otherRealTransactions));
-							}
-							if(outputCandidatesCodes) {
-								Utils.printItemsetSet(otherCandidates, otherOutputCandidateFile);
-							}
-							
-							KrimpAlgorithm otherKrimpAlgo = new KrimpAlgorithm(otherRealTransactions, otherCandidates);
-							otherKrimpCT = otherKrimpAlgo.runAlgorithm(activatePruning);
-						} else {
-							otherKrimpCT = new CodeTable(otherRealTransactions, Utils.readItemsetSetFile(otherKRIMPFile), otherAnalysis);
-						}
-						
-						CodeTable otherComparisonResult = new CodeTable( otherRealTransactions, krimpCT.getCodes(), otherAnalysis);
-						double otherNormalSize = standardCT.totalCompressedSize();
-						double otherCompressedSize = otherKrimpCT.totalCompressedSize();
-						double otherCompressedSizeWithoutCT = otherKrimpCT.encodedTransactionSetCodeLength();
-						double othercomparisonSize = otherComparisonResult.totalCompressedSize();
-						double othercomparisonSizeWithoutCT = otherComparisonResult.encodedTransactionSetCodeLength();
-						//	logger.debug("First Code table: " + krimpCT);
-						logger.debug("-------- OTHER RESULT ---------");
-						logger.debug("Other NormalLength: " + otherNormalSize);
-						logger.debug("Other CompressedLength: " + otherCompressedSize);
-						logger.debug("Other Compression: " + (otherCompressedSize / otherNormalSize));
-						logger.debug("Second Compression with first CT: " + (othercomparisonSize / otherNormalSize));
-						logger.debug("Compression ratio: "+(othercomparisonSize/otherCompressedSize));
-						logger.debug("-------- NEW FORMULATION --------");
-						double evalKrimpSize = otherKrimpCT.codificationLength(otherRealTransactions); 
-						krimpCT.setTransactions(otherRealTransactions);
-						krimpCT.updateUsages();
-						double refKrimpSize = krimpCT.codificationLength(otherRealTransactions); 
-						
-						logger.debug("Size of eval database using its Krimp CT: "+evalKrimpSize);
-						logger.debug("Size of eval database using the Reference Krimp CT: "+refKrimpSize);
-						logger.debug("Compression ratio: "+(refKrimpSize/evalKrimpSize));
-						
-//						logger.debug("-------- OTHER RESULT ---------");
-//						logger.debug(otherKrimpCT);
-						
-						if(outputCodeTableCodes) {
-							Utils.printItemsetSet(otherKrimpCT.getCodes(), otherOutputKRIMPFile);
-						}
-						
-						if (outputComparisonResultsFile == null){						
-							System.out.println(otherCompressedSize+";"+othercomparisonSize+";"+otherCompressedSizeWithoutCT+";"+othercomparisonSizeWithoutCT);
-						}
-						else{
-							
-							File outputFile = new File (outputComparisonResultsFile); 
-							
-							if (!outputFile.exists()) {
-								logger.debug("creating a new file ..."); 
-								outputFile.createNewFile(); 
-								try (FileWriter fw = new FileWriter(outputFile); 
-										PrintWriter out = new PrintWriter(fw)) {									
-									out.println("input;other;Conversion;refCompressionRatioOwnCT;evalCompressionRationOwnCT;relativeCompressionRatio(withCT);newRelativeCompressionRatio");
-									out.flush();
-								}
-								catch( Exception e) {
-									e.printStackTrace();
-								}
-							}
-							else {
-								logger.debug("the file existed before ..."); 
-							}
-							
-							try (FileWriter fw = new FileWriter(outputComparisonResultsFile, true); 
-									PrintWriter out = new PrintWriter(fw)) {
-															
-								StringBuilder line = new StringBuilder(); 
-								if (inputRDF) {
-									line.append(firstRDFFile); 									
-								}
-								else if (inputCodeTableCodes) {
-									line.append(firstKRIMPFile); 									
-								}
-								line.append(";"); 
-								if (inputOtherRDFFile) {
-									line.append(otherRDFFile); 
-								}
-								else if (inputOtherCodeTable) {
-									line.append(otherKRIMPFile); 
-								}
-								line.append(";");
-								line.append(converter.getNeighborLevel().toString());
-								line.append(";");
-								// refCompressionRationOwnCT
-								line.append(compressedSize / normalSize); 
-								line.append(";"); 
-								// evalCompressionRatioOwnCT
-								line.append(otherCompressedSize / otherNormalSize); 
-								line.append(";"); 
-								// the old relative ratio
-								line.append(othercomparisonSize/otherCompressedSize); 
-								line.append(";"); 
-								// the new relative ratio
-								line.append(refKrimpSize/evalKrimpSize);
-								out.println(line); 
-								out.flush();
-							}							
-						}
-	
-					}
 	
 					// Printing conversion index
 					if(outputConversionIndex) {

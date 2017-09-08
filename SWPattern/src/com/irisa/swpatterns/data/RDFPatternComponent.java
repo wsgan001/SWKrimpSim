@@ -73,7 +73,7 @@ public abstract class RDFPatternComponent {
 		return this.getElement().toString() + " " + this.getType() ;
 	}
 	
-	public abstract List<Object> toList();
+	public abstract List toList();
 	
 	public static RDFPatternComponent parse(String element) {
 		String[] splitElem = element.split("\t");

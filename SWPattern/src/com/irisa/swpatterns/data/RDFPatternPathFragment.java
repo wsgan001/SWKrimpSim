@@ -18,7 +18,7 @@ public class RDFPatternPathFragment extends RDFPatternComponent {
 	}
 
 	@Override
-	public List<Object> toList() {
+	public List toList() {
 		LinkedList<Object> result = new LinkedList<Object>();
 		result.add(getPathFragment().getFirst());
 		result.add(getPathFragment().getSecond());

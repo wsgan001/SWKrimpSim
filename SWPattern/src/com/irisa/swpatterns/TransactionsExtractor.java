@@ -291,41 +291,73 @@ public class TransactionsExtractor {
 		if(this.getNeighborLevel() == Neighborhood.PropertyAndType || this.getNeighborLevel() == Neighborhood.PropertyAndOther) {
 			outTripQueryString += " ?ot " ;
 		}
-		if(this.getNeighborLevel() == Neighborhood.PropertyAndOther || this.getNeighborLevel() == Neighborhood.PropertyAndValue) {
-			outTripQueryString += " ?o " ;
-		}
+		outTripQueryString += " ?o " ;
 		outTripQueryString += " WHERE { <" + currIndiv + "> ?p ?o . ";
 		if(this.getNeighborLevel() == Neighborhood.PropertyAndType || this.getNeighborLevel() == Neighborhood.PropertyAndOther) {
 			outTripQueryString += " OPTIONAL { ?o a ?ot . } ";
 		}
 		outTripQueryString += " FILTER( isBlank(?o) ) } ";
 		
+		QueryResultIterator itTripQueryResult = new QueryResultIterator(outTripQueryString, baseRDF);
+		ArrayList<ArrayList<Resource> > valuesPaths = new ArrayList<ArrayList<Resource> >();
+		try {
+			while(itTripQueryResult.hasNext()) {
+				CustomQuerySolution queryResult = itTripQueryResult.nextAnswerSet();
+				Resource prop = queryResult.getResource("p");
+				if(! onto.isOntologyPropertyVocabulary(prop)) {
+					Resource obj = queryResult.getResource("o");
+					if(! onto.isOntologyClassVocabulary(obj)) {
+						logger.debug(currIndiv + " " + prop + " " + obj); 
+						ArrayList<Resource> chain = new ArrayList<Resource>();
+						chain.add(prop);
+						
+						valuesPaths.addAll(extractPropertyValueChain(baseRDF, onto, obj, chain));
+					}
+				}
+			}
+		} finally {
+			itTripQueryResult.close();
+		}
+		Iterator<ArrayList<Resource>> itChain = valuesPaths.iterator();
+		while(itChain.hasNext()) {
+			ArrayList<Resource> chain = itChain.next();
+			RDFPatternValuePath newRDFPatternElem = new RDFPatternValuePath(chain, Type.OUT_VALUE);
+			if(! _index.contains(newRDFPatternElem)) {
+				_index.add(newRDFPatternElem);
+			}
+			result.add(newRDFPatternElem);
+		}
+		
 		return result;
 	}
 	
-	private ArrayList<ArrayList<Resource> > extractPropertyChain(BaseRDF baseRDF, UtilOntology onto, Resource currIndiv, Collection<? extends Resource> previous) {
+	private ArrayList<ArrayList<Resource> > extractPropertyValueChain(BaseRDF baseRDF, UtilOntology onto, Resource currIndiv, Collection<? extends Resource> previous) {
 		ArrayList<ArrayList<Resource> > result = new ArrayList<ArrayList<Resource> >();
 		
-		String propertyChainQueryString = "SELECT ?p ?o ";
-		propertyChainQueryString += " WHERE { <" + currIndiv + "> ?p ?o . ";
+		String propertyChainQueryString = "SELECT DISTINCT ?p ?o ";
+		propertyChainQueryString += " WHERE { _:" + currIndiv + " ?p ?o . ";
 		propertyChainQueryString += " } ";
+		logger.debug(propertyChainQueryString);
 		QueryResultIterator itPathResult = new QueryResultIterator(propertyChainQueryString, baseRDF);
 		try {
 			while(itPathResult.hasNext()) {
 				CustomQuerySolution queryResultLine = itPathResult.nextAnswerSet();
 				Resource prop = queryResultLine.getResource("p");
 				Resource obj = queryResultLine.getResource("o");
-				if(obj.isAnon()) {
-					ArrayList<Resource> newPrevious = new ArrayList<Resource>(previous);
-					newPrevious.add(prop);
-					result.addAll(extractPropertyChain(baseRDF, onto, obj, newPrevious));
-				} else {
-					ArrayList<Resource> finalPath = new ArrayList<Resource>(previous);
-					finalPath.add(prop);
-					if(this.getNeighborLevel() == Neighborhood.PropertyAndValue) {
-						finalPath.add(obj);
+				logger.debug(currIndiv + " " + prop + " " + obj); 
+				if(obj != null) {
+					if(obj.isAnon()) {
+						ArrayList<Resource> newPrevious = new ArrayList<Resource>(previous);
+						newPrevious.add(prop);
+						result.addAll(extractPropertyValueChain(baseRDF, onto, obj, newPrevious));
+					} else {
+						ArrayList<Resource> finalPath = new ArrayList<Resource>(previous);
+						finalPath.add(prop);
+						if(this.getNeighborLevel() == Neighborhood.PropertyAndValue) {
+							finalPath.add(obj);
+						}
+						result.add(finalPath);
 					}
-					result.add(finalPath);
 				}
 			}
 			

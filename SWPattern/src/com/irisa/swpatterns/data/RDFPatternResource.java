@@ -22,7 +22,7 @@ public class RDFPatternResource extends RDFPatternComponent {
 	}
 
 	@Override
-	public List<Object> toList() {
+	public List toList() {
 		LinkedList<Object> result = new LinkedList<Object>();
 		result.add(getResource());
 		result.add(getType());
