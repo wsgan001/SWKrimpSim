@@ -28,6 +28,8 @@ public class FrequentItemSetExtractor {
 	protected static String tmpTransactionFilename = "transactions.tmp";
 	protected static String tmpItemsetFilename = "itemsets.tmp";
 	
+	protected double _minSupport = 0.0;
+	
 	public enum ALGORITHM {
 		FPMax,
 		FPClose,
@@ -42,6 +44,14 @@ public class FrequentItemSetExtractor {
 
 	public Itemsets computeItemsets(ItemsetSet is) {
 		return computeItemsets(is.toItemsets());
+	}
+	
+	public double getMinSupport() {
+		return this._minSupport;
+	}
+	
+	public void setMinSupport(double supp) {
+		this._minSupport = supp;
 	}
 
 	public Itemsets computeItemsets(Itemsets transactions) {
@@ -133,7 +143,7 @@ public class FrequentItemSetExtractor {
 			AlgoFPGrowth algoFpc = new AlgoFPGrowth();
 			logger.debug("FPGrowth Algorithm");
 			Itemsets fpcResult;
-			fpcResult = algoFpc.runAlgorithm(input, null, 0.0);
+			fpcResult = algoFpc.runAlgorithm(input, null, _minSupport);
 //			fpcResult.printItemsets(fpcResult.getItemsetsCount());
 
 			return fpcResult;
@@ -161,7 +171,7 @@ public class FrequentItemSetExtractor {
 			AlgoFPClose algoFpc = new AlgoFPClose();
 			logger.debug("FPClose Algorithm");
 			Itemsets fpcResult;
-			fpcResult = algoFpc.runAlgorithm(input, null, 0.0);
+			fpcResult = algoFpc.runAlgorithm(input, null, _minSupport);
 //			fpcResult.printItemsets(fpcResult.getItemsetsCount());
 
 			return fpcResult;
@@ -187,7 +197,7 @@ public class FrequentItemSetExtractor {
 		try {
 			logger.debug("FPMax Algorithm");
 			AlgoFPMax algoFpc = new AlgoFPMax();
-			Itemsets fpcResult = algoFpc.runAlgorithm(input, null, 0.0);
+			Itemsets fpcResult = algoFpc.runAlgorithm(input, null, _minSupport);
 //			fpcResult.printItemsets(fpcResult.getItemsetsCount());
 
 			return fpcResult;
@@ -213,7 +223,7 @@ public class FrequentItemSetExtractor {
 			Itemsets fpcResult;
 			PrePost algoFpc = new PrePost();
 			algoFpc.setUsePrePostPlus(true);
-			algoFpc.runAlgorithm(input, 0.0, tmpItemsetFilename);
+			algoFpc.runAlgorithm(input, _minSupport, tmpItemsetFilename);
 			fpcResult = Utils.readItemsetFile(tmpItemsetFilename);
 
 			return fpcResult;
@@ -228,7 +238,7 @@ public class FrequentItemSetExtractor {
 			AlgoRelim algoFpc = new AlgoRelim();
 			logger.debug("Relim Algorithm");
 			Itemsets fpcResult;
-			algoFpc.runAlgorithm(0.0, input, tmpItemsetFilename);
+			algoFpc.runAlgorithm(_minSupport, input, tmpItemsetFilename);
 			fpcResult = Utils.readItemsetFile(tmpItemsetFilename);
 //			fpcResult.printItemsets(fpcResult.getItemsetsCount());
 
@@ -264,7 +274,7 @@ public class FrequentItemSetExtractor {
 			FIN algoFpc = new FIN();
 			logger.debug("FIN Algorithm");
 			Itemsets fpcResult;
-			algoFpc.runAlgorithm(input, 0.0, tmpItemsetFilename);
+			algoFpc.runAlgorithm(input, _minSupport, tmpItemsetFilename);
 			fpcResult = Utils.readItemsetFile(tmpItemsetFilename);
 //			fpcResult.printItemsets(fpcResult.getItemsetsCount());
 

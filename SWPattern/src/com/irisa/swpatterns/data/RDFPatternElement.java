@@ -3,6 +3,7 @@ package com.irisa.swpatterns.data;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.log4j.Logger;
 
@@ -19,7 +20,7 @@ public class RDFPatternElement {
 
 	private Resource _res = null;
 	private Couple<Resource, Resource> _couple = null;
-	private List<Resource> _list = null;
+	private List<RDFNode> _list = null;
 	
 	public RDFPatternElement(Resource r) {
 		this.setresource(r);
@@ -33,7 +34,7 @@ public class RDFPatternElement {
 		this.setCouple(couple);
 	}
 	
-	public RDFPatternElement(List<Resource> l) {
+	public RDFPatternElement(List<RDFNode> l) {
 		this.setList(l);
 	}
 
@@ -53,11 +54,11 @@ public class RDFPatternElement {
 		this._res = _res;
 	}
 	
-	public List<Resource> getList() {
+	public List<RDFNode> getList() {
 		return this._list;
 	}
 	
-	public void setList(List<Resource> l) {
+	public void setList(List<RDFNode> l) {
 		this._list = l;
 	}
 	
@@ -70,9 +71,9 @@ public class RDFPatternElement {
 		} else if(this.getList() != null) {
 			StringBuilder builder = new StringBuilder();
 			builder.append("[ ");
-			Iterator<Resource> itList = this.getList().iterator();
+			Iterator<RDFNode> itList = this.getList().iterator();
 			while(itList.hasNext()) {
-				Resource res = itList.next();
+				RDFNode res = itList.next();
 				builder.append(res.toString());
 				if(itList.hasNext()) {
 					builder.append(", ");

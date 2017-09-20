@@ -11,6 +11,7 @@ import java.util.function.Consumer;
 import org.apache.commons.math3.stat.descriptive.AggregateSummaryStatistics;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.apache.jena.atlas.web.HttpException;
+import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.log4j.Logger;
@@ -44,6 +45,7 @@ public class TransactionsExtractor {
 	private HashMap<Resource, Integer> _inDegreeCount = new HashMap<Resource, Integer>();
 	private HashMap<Resource, Integer> _outDegreeCount = new HashMap<Resource, Integer>();
 	private HashSet<Resource> _outliers = new HashSet<Resource>();
+	private HashSet<Resource> _individuals = new HashSet<Resource>();
 
 	private boolean _noTypeBool = false;
 	private boolean _noInBool = false;
@@ -242,7 +244,7 @@ public class TransactionsExtractor {
 								}
 								indivResult.add(attributeOther);
 							} else if (! obj.isAnon()) {
-								ArrayList<Resource> list = new ArrayList<Resource>();
+								ArrayList<RDFNode> list = new ArrayList<RDFNode>();
 								list.add(prop);
 								list.add(obj);
 								RDFPatternComponent attributeOther = new RDFPatternValuePath(list, RDFPatternResource.Type.OUT_VALUE );
@@ -276,51 +278,43 @@ public class TransactionsExtractor {
 			itOutResult.close();
 		}
 		
-		if(blankNodeToExplore) {
-			indivResult.addAll(extractOutPathsForIndividual(baseRDF, onto, currIndiv));
-		}
-		
 		return indivResult;
 	}
 	
-	
-	private Collection<RDFPatternComponent> extractOutPathsForIndividual(BaseRDF baseRDF, UtilOntology onto, Resource currIndiv) {
-		ArrayList<RDFPatternComponent> result = new ArrayList<RDFPatternComponent>();
+	public LabeledTransaction extractPropertyAttributePathForIndividual(BaseRDF baseRDF, UtilOntology onto, Resource currIndiv) {
+		LabeledTransaction result = new LabeledTransaction();
 		
 		String outTripQueryString = "SELECT DISTINCT ?p "; 
-		if(this.getNeighborLevel() == Neighborhood.PropertyAndType || this.getNeighborLevel() == Neighborhood.PropertyAndOther) {
-			outTripQueryString += " ?ot " ;
-		}
 		outTripQueryString += " ?o " ;
 		outTripQueryString += " WHERE { <" + currIndiv + "> ?p ?o . ";
-		if(this.getNeighborLevel() == Neighborhood.PropertyAndType || this.getNeighborLevel() == Neighborhood.PropertyAndOther) {
-			outTripQueryString += " OPTIONAL { ?o a ?ot . } ";
-		}
-		outTripQueryString += " FILTER( isBlank(?o) ) } ";
+		outTripQueryString += " } ";
 		
 		QueryResultIterator itTripQueryResult = new QueryResultIterator(outTripQueryString, baseRDF);
-		ArrayList<ArrayList<Resource> > valuesPaths = new ArrayList<ArrayList<Resource> >();
+		ArrayList<ArrayList<RDFNode> > valuesPaths = new ArrayList<ArrayList<RDFNode> >();
+		HashSet<Resource> nodesSeen = new HashSet<Resource>();
 		try {
 			while(itTripQueryResult.hasNext()) {
 				CustomQuerySolution queryResult = itTripQueryResult.nextAnswerSet();
 				Resource prop = queryResult.getResource("p");
 				if(! onto.isOntologyPropertyVocabulary(prop)) {
 					Resource obj = queryResult.getResource("o");
-					if(! onto.isOntologyClassVocabulary(obj)) {
-						logger.debug(currIndiv + " " + prop + " " + obj); 
+					if(obj != null && ! onto.isOntologyClassVocabulary(obj) && ! nodesSeen.contains(obj)) {
 						ArrayList<Resource> chain = new ArrayList<Resource>();
 						chain.add(prop);
-						
-						valuesPaths.addAll(extractPropertyValueChain(baseRDF, onto, obj, chain));
+						HashSet<Resource> history = new HashSet<Resource>();
+						history.add(currIndiv);
+						valuesPaths.addAll(extractPropertyValueChain(baseRDF, onto, currIndiv, chain, history));
 					}
 				}
 			}
 		} finally {
 			itTripQueryResult.close();
 		}
-		Iterator<ArrayList<Resource>> itChain = valuesPaths.iterator();
+		
+		
+		Iterator<ArrayList<RDFNode>> itChain = valuesPaths.iterator();
 		while(itChain.hasNext()) {
-			ArrayList<Resource> chain = itChain.next();
+			ArrayList<RDFNode> chain = itChain.next();
 			RDFPatternValuePath newRDFPatternElem = new RDFPatternValuePath(chain, Type.OUT_VALUE);
 			if(! _index.contains(newRDFPatternElem)) {
 				_index.add(newRDFPatternElem);
@@ -331,38 +325,50 @@ public class TransactionsExtractor {
 		return result;
 	}
 	
-	private ArrayList<ArrayList<Resource> > extractPropertyValueChain(BaseRDF baseRDF, UtilOntology onto, Resource currIndiv, Collection<? extends Resource> previous) {
-		ArrayList<ArrayList<Resource> > result = new ArrayList<ArrayList<Resource> >();
-		
-		String propertyChainQueryString = "SELECT DISTINCT ?p ?o ";
-		propertyChainQueryString += " WHERE { _:" + currIndiv + " ?p ?o . ";
-		propertyChainQueryString += " } ";
-		logger.debug(propertyChainQueryString);
-		QueryResultIterator itPathResult = new QueryResultIterator(propertyChainQueryString, baseRDF);
-		try {
-			while(itPathResult.hasNext()) {
-				CustomQuerySolution queryResultLine = itPathResult.nextAnswerSet();
-				Resource prop = queryResultLine.getResource("p");
-				Resource obj = queryResultLine.getResource("o");
-				logger.debug(currIndiv + " " + prop + " " + obj); 
-				if(obj != null) {
-					if(obj.isAnon()) {
-						ArrayList<Resource> newPrevious = new ArrayList<Resource>(previous);
-						newPrevious.add(prop);
-						result.addAll(extractPropertyValueChain(baseRDF, onto, obj, newPrevious));
-					} else {
-						ArrayList<Resource> finalPath = new ArrayList<Resource>(previous);
-						finalPath.add(prop);
-						if(this.getNeighborLevel() == Neighborhood.PropertyAndValue) {
-							finalPath.add(obj);
+	private ArrayList<ArrayList<RDFNode> > extractPropertyValueChain(BaseRDF baseRDF, UtilOntology onto, Resource currIndiv, ArrayList<? extends Resource> previous, HashSet<Resource> nodeHistory) {
+		ArrayList<ArrayList<RDFNode> > result = new ArrayList<ArrayList<RDFNode> >();
+
+		if(! currIndiv.isAnon()) {
+			int beforeLastVar = previous.size()-1;
+			int lastVar = previous.size();
+			String propertyChainQueryStringHead = "SELECT DISTINCT ?p ?o"+lastVar +" ";
+			String propertyChainQueryStringBody = " WHERE { <" + currIndiv + "> <"+ previous.get(0).getURI() +"> ?o0 . ";
+			for(int i = 1; i < previous.size(); i++) {
+				propertyChainQueryStringBody += " ?o" + (i-1) + " <"+previous.get(i) + "> ?o"+ (i) + " . ";
+			}
+			propertyChainQueryStringBody += " ?o" + beforeLastVar + " ?p ?o"+ lastVar + " . ";
+			propertyChainQueryStringBody += " } ";
+			String propertyChainQueryString = propertyChainQueryStringHead + propertyChainQueryStringBody;
+			logger.debug(propertyChainQueryString);
+			QueryResultIterator itPathResult = new QueryResultIterator(propertyChainQueryString, baseRDF);
+			try {
+				while(itPathResult.hasNext()) {
+					CustomQuerySolution queryResultLine = itPathResult.nextAnswerSet();
+					Resource prop = queryResultLine.getResource("p");
+					if(! onto.isOntologyPropertyVocabulary(prop)) {
+						RDFNode obj = queryResultLine.get("o"+lastVar);
+						if(obj != null && ! obj.equals(currIndiv) && ! nodeHistory.contains(obj)) {
+							logger.debug(queryResultLine);
+							if(obj.isAnon()) {
+								ArrayList<Resource> newPrevious = new ArrayList<Resource>(previous);
+								newPrevious.add(prop);
+								nodeHistory.add((Resource) obj);
+								result.addAll(extractPropertyValueChain(baseRDF, onto, currIndiv, newPrevious, nodeHistory));
+							} else if(obj.isLiteral()) {
+								ArrayList<RDFNode> finalPath = new ArrayList<RDFNode>(previous);
+								finalPath.add(prop);
+								if(this.getNeighborLevel() == Neighborhood.PropertyAndValue) {
+									finalPath.add(obj);
+								}
+								result.add(finalPath);
+							}
 						}
-						result.add(finalPath);
 					}
 				}
+				
+			} finally {
+				itPathResult.close();
 			}
-			
-		} finally {
-			itPathResult.close();
 		}
 		
 		return result;
@@ -385,6 +391,9 @@ public class TransactionsExtractor {
 		if(! _noInBool) {
 			indivResult.addAll(this.extractInPropertyAttributesForIndividual(baseRDF, onto, currIndiv));
 		}
+		
+		// QUERY property and values path
+		indivResult.addAll(extractPropertyAttributePathForIndividual(baseRDF, onto, currIndiv));
 		
 //		if(this.getNeighborLevel() == Neighborhood.PropertyAndObjectType) {
 //			indivResult.addAll(this.extractPathFragmentAttributesForIndividual(baseRDF, onto, currIndiv));
@@ -419,8 +428,11 @@ public class TransactionsExtractor {
 		Iterator<Resource> itIndiv = indivSet.iterator();
 		while(itIndiv.hasNext()) {
 			Resource currIndiv = itIndiv.next();
+			if(! this._individuals.contains(currIndiv)) {
+				this._individuals.add(currIndiv);
+				results.add(extractTransactionsForIndividual(baseRDF, onto, currIndiv));
+			}
 			
-			results.add(extractTransactionsForIndividual(baseRDF, onto, currIndiv));
 		}
 		return results;
 	}

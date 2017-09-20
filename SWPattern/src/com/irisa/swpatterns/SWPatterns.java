@@ -136,6 +136,9 @@ public class SWPatterns {
 				else if(cmd.hasOption("PrePost")) {
 					fsExtractor.setAlgoPrePost();
 				}
+				
+				fsExtractor.setMinSupport(0.05);
+				
 				// Encoding options
 				if(cmd.hasOption(PropertiesConversionOption)) {
 					converter.setNeighborLevel(Neighborhood.Property);
