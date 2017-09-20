@@ -137,7 +137,7 @@ public class SWPatterns {
 					fsExtractor.setAlgoPrePost();
 				}
 				
-				fsExtractor.setMinSupport(0.05);
+				fsExtractor.setMinSupport(0.20);
 				
 				// Encoding options
 				if(cmd.hasOption(PropertiesConversionOption)) {

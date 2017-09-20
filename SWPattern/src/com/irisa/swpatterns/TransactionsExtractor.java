@@ -14,6 +14,7 @@ import org.apache.jena.atlas.web.HttpException;
 import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.vocabulary.RDF;
+import org.apache.jena.vocabulary.RDFS;
 import org.apache.log4j.Logger;
 
 import com.irisa.jenautils.BaseRDF;
@@ -281,6 +282,13 @@ public class TransactionsExtractor {
 		return indivResult;
 	}
 	
+	/**
+	 * Extract property paths terminated by a literal value starting with the given individual
+	 * @param baseRDF
+	 * @param onto
+	 * @param currIndiv
+	 * @return
+	 */
 	public LabeledTransaction extractPropertyAttributePathForIndividual(BaseRDF baseRDF, UtilOntology onto, Resource currIndiv) {
 		LabeledTransaction result = new LabeledTransaction();
 		
@@ -296,14 +304,21 @@ public class TransactionsExtractor {
 			while(itTripQueryResult.hasNext()) {
 				CustomQuerySolution queryResult = itTripQueryResult.nextAnswerSet();
 				Resource prop = queryResult.getResource("p");
-				if(! onto.isOntologyPropertyVocabulary(prop)) {
-					Resource obj = queryResult.getResource("o");
-					if(obj != null && ! onto.isOntologyClassVocabulary(obj) && ! nodesSeen.contains(obj)) {
-						ArrayList<Resource> chain = new ArrayList<Resource>();
-						chain.add(prop);
-						HashSet<Resource> history = new HashSet<Resource>();
-						history.add(currIndiv);
-						valuesPaths.addAll(extractPropertyValueChain(baseRDF, onto, currIndiv, chain, history));
+				if(! onto.isOntologyPropertyVocabulary(prop) && ! prop.equals(RDFS.label)) {
+					RDFNode obj = queryResult.get("o");
+					if(obj != null) {
+						if(obj.isResource() && ! onto.isOntologyClassVocabulary((Resource) obj) && ! nodesSeen.contains(obj) && obj.isAnon()) {
+							ArrayList<Resource> chain = new ArrayList<Resource>();
+							chain.add(prop);
+							HashSet<Resource> history = new HashSet<Resource>();
+							history.add(currIndiv);
+							valuesPaths.addAll(extractPropertyValueChain(baseRDF, onto, currIndiv, chain, history));
+						}else if(obj.isLiteral()) {
+							ArrayList<RDFNode> shortChain = new ArrayList<RDFNode>();
+							shortChain.add(prop);
+							shortChain.add(obj);
+							valuesPaths.add(shortChain);
+						}
 					}
 				}
 			}
@@ -325,6 +340,15 @@ public class TransactionsExtractor {
 		return result;
 	}
 	
+	/**
+	 * Récursive function for the property path of length superior to 1
+	 * @param baseRDF
+	 * @param onto
+	 * @param currIndiv starting individual
+	 * @param previous encountered properties
+	 * @param nodeHistory intermediary blank nodes
+	 * @return
+	 */
 	private ArrayList<ArrayList<RDFNode> > extractPropertyValueChain(BaseRDF baseRDF, UtilOntology onto, Resource currIndiv, ArrayList<? extends Resource> previous, HashSet<Resource> nodeHistory) {
 		ArrayList<ArrayList<RDFNode> > result = new ArrayList<ArrayList<RDFNode> >();
 
