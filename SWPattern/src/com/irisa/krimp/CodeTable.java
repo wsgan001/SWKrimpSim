@@ -125,7 +125,9 @@ public class CodeTable {
 	 * @return Iterator over a sorted temporary copy of the itemset list of the code table
 	 */
 	public Iterator<KItemset> codeIterator() {
-		return _codes.iterator();
+		ItemsetSet tmpCodes = new ItemsetSet(this._codes);
+		tmpCodes.sort(standardCoverOrderComparator);
+		return tmpCodes.iterator();
 	}
 	
 	public ItemsetSet getCodes() {

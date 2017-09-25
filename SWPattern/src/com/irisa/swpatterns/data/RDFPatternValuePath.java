@@ -12,6 +12,10 @@ public class RDFPatternValuePath extends RDFPatternComponent {
 		super(new RDFPatternElement(l), type);
 	}
 
+	public List<RDFNode> getList() {
+		return this.getElement().getList();
+	}
+	
 	@Override
 	public List toList() {
 		LinkedList list = new LinkedList();

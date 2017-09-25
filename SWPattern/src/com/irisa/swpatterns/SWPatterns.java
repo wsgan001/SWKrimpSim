@@ -1,9 +1,12 @@
 package com.irisa.swpatterns;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.PrintWriter;
 import java.util.Arrays;
+import java.util.Iterator;
+import java.util.function.Consumer;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -12,6 +15,8 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.OptionGroup;
 import org.apache.commons.cli.Options;
+import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
@@ -25,6 +30,7 @@ import com.irisa.krimp.CodeTable;
 import com.irisa.krimp.KrimpAlgorithm;
 import com.irisa.krimp.data.DataIndexes;
 import com.irisa.krimp.data.ItemsetSet;
+import com.irisa.krimp.data.KItemset;
 import com.irisa.krimp.data.Utils;
 import com.irisa.swpatterns.TransactionsExtractor.Neighborhood;
 import com.irisa.swpatterns.data.AttributeIndex;
@@ -137,7 +143,7 @@ public class SWPatterns {
 					fsExtractor.setAlgoPrePost();
 				}
 				
-				fsExtractor.setMinSupport(0.20);
+				fsExtractor.setMinSupport(0.0);
 				
 				// Encoding options
 				if(cmd.hasOption(PropertiesConversionOption)) {
@@ -226,6 +232,20 @@ public class SWPatterns {
 	
 					realtransactions = index.convertToTransactions(transactions);
 						codes = new ItemsetSet(fsExtractor.computeItemsets(transactions, index));
+						
+						// TEST TEST TEST TEST
+							// Removing codes with 1 support ?
+							ItemsetSet toBeRemoved = new ItemsetSet();
+							codes.forEach(new Consumer<KItemset>() {
+								@Override
+								public void accept(KItemset t) {
+									if(t.getSupport() == 1) {
+										toBeRemoved.add(t);
+									}
+								}
+							});
+							codes.removeAll(toBeRemoved);
+						// TEST TEST TEST END
 					logger.debug("Nb transactions: " + realtransactions.size());
 	
 					logger.debug("Nb items: " + converter.getIndex().size());
@@ -259,6 +279,14 @@ public class SWPatterns {
 					logger.debug("First CompressedLength: " + compressedSize);
 					logger.debug("First Compression: " + (compressedSize / normalSize));
 	
+					Iterator<KItemset> itKrimpCode = krimpCT.codeIterator();
+					Model rdfFinale = ModelFactory.createDefaultModel();
+					while(itKrimpCode.hasNext()) {
+						KItemset code = itKrimpCode.next();
+						
+						rdfFinale.add(index.rdfizePattern(code));
+					}
+					rdfFinale.write(new FileOutputStream("rdfPatterns.ttl"), "TTL");
 	
 					// Printing conversion index
 					if(outputConversionIndex) {

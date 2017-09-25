@@ -840,6 +840,7 @@ public class TransactionsExtractor {
 		return null;
 	}
 	
+	@Deprecated
 	public RankUpQuery sparqlizeItemSet(LabeledTransaction is) {
 		HashMap<RDFPatternComponent, String> variables = new HashMap<RDFPatternComponent, String>();
 		HashMap<String, RDFPatternComponent> patterns = new HashMap<String, RDFPatternComponent>();

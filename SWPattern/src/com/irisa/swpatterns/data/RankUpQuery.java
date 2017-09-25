@@ -5,6 +5,7 @@ import java.util.HashMap;
 import org.apache.jena.query.Query;
 import org.apache.jena.query.QueryFactory;
 
+@Deprecated
 public class RankUpQuery {
 	
 	private HashMap<RDFPatternComponent, String> _patternVariablesIndex;

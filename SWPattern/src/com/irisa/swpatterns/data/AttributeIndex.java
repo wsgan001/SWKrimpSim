@@ -21,6 +21,7 @@ import org.apache.commons.csv.CSVRecord;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Property;
+import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.log4j.Logger;
@@ -322,6 +323,20 @@ public class AttributeIndex {
 			case OUT_PROPERTY:
 				result.add(mainRes, ((RDFPatternResource) item).getResource().as(Property.class), result.createResource());
 				break;
+			case OUT_VALUE:
+				Resource currentBN = mainRes;
+				List<RDFNode> path = ((RDFPatternValuePath) item).getList();
+				for(int i = 0; i < path.size()-1; i++) {
+					RDFNode currNode = path.get(i);
+					if(i < path.size()-2) { // currNode is property
+						Resource tmpBN = result.createResource();
+						result.add(currentBN, currNode.as(Property.class), tmpBN);
+						currentBN = tmpBN;
+					} else { // currnode is the final property
+						RDFNode lastElem = path.get(path.size()-1);
+						result.add(currentBN, currNode.as(Property.class), lastElem.asLiteral());
+					}
+				}
 			default:
 				break;
 			}
