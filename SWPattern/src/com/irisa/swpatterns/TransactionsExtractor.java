@@ -47,6 +47,7 @@ public class TransactionsExtractor {
 	private HashMap<Resource, Integer> _outDegreeCount = new HashMap<Resource, Integer>();
 	private HashSet<Resource> _outliers = new HashSet<Resource>();
 	private HashSet<Resource> _individuals = new HashSet<Resource>();
+	private HashSet<Resource> _ignoredProperties = new HashSet<Resource>();
 
 	private boolean _noTypeBool = false;
 	private boolean _noInBool = false;
@@ -78,6 +79,18 @@ public class TransactionsExtractor {
 
 	public void setIndex(AttributeIndex index) {
 		this._index = index;
+	}
+	
+	public void addIgnoredProperty(Resource prop) {
+		this._ignoredProperties.add(prop);
+	}
+	
+	public void removeIgnoredProperty(Resource prop) {
+		this._ignoredProperties.remove(prop);
+	}
+	
+	public HashSet<Resource> ignoredProperties() {
+		return this._ignoredProperties;
 	}
 
 	/**
@@ -289,7 +302,7 @@ public class TransactionsExtractor {
 	 * @param currIndiv
 	 * @return
 	 */
-	public LabeledTransaction extractPropertyAttributePathForIndividual(BaseRDF baseRDF, UtilOntology onto, Resource currIndiv) {
+	private LabeledTransaction extractPropertyAttributePathForIndividual(BaseRDF baseRDF, UtilOntology onto, Resource currIndiv) {
 		LabeledTransaction result = new LabeledTransaction();
 		
 		String outTripQueryString = "SELECT DISTINCT ?p "; 
@@ -304,7 +317,7 @@ public class TransactionsExtractor {
 			while(itTripQueryResult.hasNext()) {
 				CustomQuerySolution queryResult = itTripQueryResult.nextAnswerSet();
 				Resource prop = queryResult.getResource("p");
-				if(! onto.isOntologyPropertyVocabulary(prop) && ! prop.equals(RDFS.label)) {
+				if(! onto.isOntologyPropertyVocabulary(prop) && ! prop.equals(RDFS.label) && ! this._ignoredProperties.contains(prop)) {
 					RDFNode obj = queryResult.get("o");
 					if(obj != null) {
 						if(obj.isResource() && ! onto.isOntologyClassVocabulary((Resource) obj) && ! nodesSeen.contains(obj) && obj.isAnon()) {
@@ -401,27 +414,27 @@ public class TransactionsExtractor {
 	public LabeledTransaction extractTransactionsForIndividual(BaseRDF baseRDF, UtilOntology onto, Resource currIndiv) {
 		LabeledTransaction indivResult = new LabeledTransaction();
 
-		// QUERY types triples
-		if(! _noTypeBool) {
-			indivResult.addAll(this.extractTypeAttributeForIndividual(baseRDF, onto, currIndiv));
-		}
-
-		// QUERY out triples
-		if(! _noOutBool) {
-			indivResult.addAll(this.extractOutPropertyAttributeForIndividual(baseRDF, onto, currIndiv));
-		}
-
-		// QUERY in triples
-		if(! _noInBool) {
-			indivResult.addAll(this.extractInPropertyAttributesForIndividual(baseRDF, onto, currIndiv));
+		if(this.getNeighborLevel() != Neighborhood.PropertyAndValue) {
+		
+			// QUERY types triples
+			if(! _noTypeBool) {
+				indivResult.addAll(this.extractTypeAttributeForIndividual(baseRDF, onto, currIndiv));
+			}
+	
+			// QUERY out triples
+			if(! _noOutBool) {
+				indivResult.addAll(this.extractOutPropertyAttributeForIndividual(baseRDF, onto, currIndiv));
+			}
+	
+			// QUERY in triples
+			if(! _noInBool) {
+				indivResult.addAll(this.extractInPropertyAttributesForIndividual(baseRDF, onto, currIndiv));
+			}
+		} else {
+			// QUERY property and values path
+			indivResult.addAll(extractPropertyAttributePathForIndividual(baseRDF, onto, currIndiv));
 		}
 		
-		// QUERY property and values path
-		indivResult.addAll(extractPropertyAttributePathForIndividual(baseRDF, onto, currIndiv));
-		
-//		if(this.getNeighborLevel() == Neighborhood.PropertyAndObjectType) {
-//			indivResult.addAll(this.extractPathFragmentAttributesForIndividual(baseRDF, onto, currIndiv));
-//		}
 		
 		return indivResult;
 	}

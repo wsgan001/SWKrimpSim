@@ -199,6 +199,12 @@ public class SWPatterns {
 					if(pathOption != null) {
 						converter.setPathsLength(Integer.valueOf(pathOption));
 					}
+					
+					Model tmpModel = ModelFactory.createDefaultModel();
+					converter.addIgnoredProperty(tmpModel.createResource("http://www.irisa.fr/LIS/ferre/IDFRAud/CNI/ID"));
+					converter.addIgnoredProperty(tmpModel.createResource("http://www.irisa.fr/LIS/ferre/IDFRAud/CNI/cas"));
+					converter.addIgnoredProperty(tmpModel.createResource("http://www.irisa.fr/LIS/ferre/IDFRAud/CNI/numéroDeSérie"));
+					tmpModel.close();
 	
 					BaseRDF baseRDF = new BaseRDF(firstRDFFile, MODE.LOCAL);
 	
@@ -231,21 +237,8 @@ public class SWPatterns {
 					}
 	
 					realtransactions = index.convertToTransactions(transactions);
-						codes = new ItemsetSet(fsExtractor.computeItemsets(transactions, index));
+					codes = new ItemsetSet(fsExtractor.computeItemsets(transactions, index));
 						
-						// TEST TEST TEST TEST
-							// Removing codes with 1 support ?
-							ItemsetSet toBeRemoved = new ItemsetSet();
-							codes.forEach(new Consumer<KItemset>() {
-								@Override
-								public void accept(KItemset t) {
-									if(t.getSupport() == 1) {
-										toBeRemoved.add(t);
-									}
-								}
-							});
-							codes.removeAll(toBeRemoved);
-						// TEST TEST TEST END
 					logger.debug("Nb transactions: " + realtransactions.size());
 	
 					logger.debug("Nb items: " + converter.getIndex().size());
