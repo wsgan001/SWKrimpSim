@@ -317,7 +317,7 @@ public class TransactionsExtractor {
 			while(itTripQueryResult.hasNext()) {
 				CustomQuerySolution queryResult = itTripQueryResult.nextAnswerSet();
 				Resource prop = queryResult.getResource("p");
-				if(! onto.isOntologyPropertyVocabulary(prop) && ! prop.equals(RDFS.label) && ! this._ignoredProperties.contains(prop)) {
+				if(! onto.isOntologyPropertyVocabulary(prop) && ! this._ignoredProperties.contains(prop)) {
 					RDFNode obj = queryResult.get("o");
 					if(obj != null) {
 						if(obj.isResource() && ! onto.isOntologyClassVocabulary((Resource) obj) && ! nodesSeen.contains(obj) && obj.isAnon()) {
@@ -376,16 +376,14 @@ public class TransactionsExtractor {
 			propertyChainQueryStringBody += " ?o" + beforeLastVar + " ?p ?o"+ lastVar + " . ";
 			propertyChainQueryStringBody += " } ";
 			String propertyChainQueryString = propertyChainQueryStringHead + propertyChainQueryStringBody;
-			logger.debug(propertyChainQueryString);
 			QueryResultIterator itPathResult = new QueryResultIterator(propertyChainQueryString, baseRDF);
 			try {
 				while(itPathResult.hasNext()) {
 					CustomQuerySolution queryResultLine = itPathResult.nextAnswerSet();
 					Resource prop = queryResultLine.getResource("p");
-					if(! onto.isOntologyPropertyVocabulary(prop)) {
+					if(! onto.isOntologyPropertyVocabulary(prop) && ! this._ignoredProperties.contains(prop)) {
 						RDFNode obj = queryResultLine.get("o"+lastVar);
 						if(obj != null && ! obj.equals(currIndiv) && ! nodeHistory.contains(obj)) {
-							logger.debug(queryResultLine);
 							if(obj.isAnon()) {
 								ArrayList<Resource> newPrevious = new ArrayList<Resource>(previous);
 								newPrevious.add(prop);

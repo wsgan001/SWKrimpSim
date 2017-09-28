@@ -81,7 +81,6 @@ public class RDFPatternElement {
 			}
 			builder.append(" ]");
 			
-			
 			return builder.toString();
 		}
 		return "";
