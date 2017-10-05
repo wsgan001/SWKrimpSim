@@ -52,6 +52,7 @@ public class SWPatterns {
 		String PropertiesConversionOption = "nProperties";
 		String PropertiesAndTypesConversionOption = "nPropertiesAndTypes";
 		String PropertiesAndOthersConversionOption = "nPropertiesAndOthers";
+		String PropertyPathAndValueConversionOption = "nPropertyPathAndValues";
 
 		OptionGroup algorithm = new OptionGroup();
 		algorithm.addOption(new Option("FPClose", false, "Use FPClose algorithm. (default)"));
@@ -64,6 +65,7 @@ public class SWPatterns {
 		conversion.addOption(new Option(PropertiesConversionOption, false, "Extract items representing only properties (central individual types, out-going and in-going properties), encoding="+Neighborhood.Property+"."));
 		conversion.addOption(new Option(PropertiesAndTypesConversionOption, false, "Extract items representing only properties and connected ressources types, encoding="+Neighborhood.PropertyAndType+"."));
 		conversion.addOption(new Option(PropertiesAndOthersConversionOption, false, "Extract items representing properties and connected ressources, encoding="+Neighborhood.PropertyAndOther+"."));
+		conversion.addOption(new Option(PropertyPathAndValueConversionOption, false, "Extract items representing property path including blank nodes ending with literals, encoding="+Neighborhood.PropertyAndValue+". (default)"));
 
 		// Setting up options
 		CommandLineParser parser = new DefaultParser();
@@ -87,7 +89,6 @@ public class SWPatterns {
 		options.addOption("noOut", false, "Not taking OUT properties into account for RDF conversion.");
 		options.addOption("noIn", false, "Not taking IN properties into account for RDF conversion.");
 		options.addOption("noTypes", false, "Not taking TYPES into account for RDF conversion.");
-		options.addOption("path", true, "Extract paths of length N. (Here be dragons)");
 		options.addOption("help", false, "Display this help.");
 
 		// Setting up options and constants etc.
@@ -140,6 +141,7 @@ public class SWPatterns {
 
 				fsExtractor.setMinSupport(0.0);
 
+				converter.setNeighborLevel(Neighborhood.PropertyAndValue);
 				// Encoding options
 				if(cmd.hasOption(PropertiesConversionOption)) {
 					converter.setNeighborLevel(Neighborhood.Property);
@@ -150,7 +152,6 @@ public class SWPatterns {
 				if(cmd.hasOption(PropertiesAndOthersConversionOption)) {
 					converter.setNeighborLevel(Neighborhood.PropertyAndOther);
 				}
-				converter.setNeighborLevel(Neighborhood.PropertyAndValue);
 				logger.debug("Pruning activated: "+activatePruning);
 
 				// NO MODE cmd.hasOption() past this point
@@ -195,13 +196,6 @@ public class SWPatterns {
 					converter.setPathsLength(Integer.valueOf(pathOption));
 				}
 
-				Model tmpModel = ModelFactory.createDefaultModel();
-				converter.addIgnoredProperty(tmpModel.createResource("http://www.irisa.fr/LIS/ferre/IDFRAud/CNI/ID"));
-				converter.addIgnoredProperty(tmpModel.createResource("http://www.irisa.fr/LIS/ferre/IDFRAud/CNI/cas"));
-				converter.addIgnoredProperty(tmpModel.createResource("http://www.irisa.fr/LIS/ferre/IDFRAud/CNI/numéroDeSérie"));
-				converter.addIgnoredProperty(tmpModel.createResource("http://www.irisa.fr/LIS/ferre/IDFRAud/CNI/produit"));
-				tmpModel.close();
-
 				BaseRDF baseRDF = new BaseRDF(firstRDFFile, MODE.LOCAL);
 
 				//					logger.debug("initOnto");
@@ -221,8 +215,6 @@ public class SWPatterns {
 				if(cmd.hasOption("class")) {
 					Resource classRes = onto.getModel().createResource(className);
 					transactions = converter.extractTransactionsForClass(baseRDF, onto, classRes);
-				} else if(cmd.hasOption("path")) {
-					transactions = converter.extractPathAttributes(baseRDF, onto);
 				} else {
 					transactions = converter.extractTransactions(baseRDF, onto);
 				}
