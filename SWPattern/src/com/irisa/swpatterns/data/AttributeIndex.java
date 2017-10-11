@@ -18,6 +18,8 @@ import java.util.function.Consumer;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
+import org.apache.commons.csv.QuoteMode;
+import org.apache.jena.rdf.model.Literal;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Property;
@@ -204,7 +206,7 @@ public class AttributeIndex {
 	
 	public void printAttributeIndex(String filename) {
 		try {
-		CSVPrinter attributePrinter = new CSVPrinter(new PrintWriter(new BufferedWriter(new FileWriter(filename))), CSVFormat.TDF);
+		CSVPrinter attributePrinter = new CSVPrinter(new PrintWriter(new BufferedWriter(new FileWriter(filename))), CSVFormat.TDF.withQuoteMode(QuoteMode.NONE));
 		
 		// Writing attributes
 //		LinkedList<RDFPatternComponent> compos = new LinkedList<RDFPatternComponent>(_attributeItemIndex.keySet());
@@ -218,10 +220,21 @@ public class AttributeIndex {
 		Iterator<RDFPatternComponent> itAttr = _attributeItemIndex.keySet().iterator();
 		while(itAttr.hasNext()) {
 			RDFPatternComponent attr = itAttr.next();
-			List recordList = attr.toList();
-			recordList.add(getItem(attr));
-			attributePrinter.printRecord(recordList);
-//			attributePrinter.println();
+			List recordList = new ArrayList();
+			Iterator<Object> itAttribute = attr.toList().iterator();
+			while(itAttribute.hasNext()) {
+				Object attribute = itAttribute.next();
+				if(attribute instanceof Literal) {
+					Literal lit = (Literal) attribute;
+					attributePrinter.print("\"" + lit + "\"");
+				} else {
+					attributePrinter.print(attribute);
+				}
+			}
+//			recordList.add(getItem(attr));
+			attributePrinter.print(getItem(attr));
+//			attributePrinter.printRecord(recordList);
+			attributePrinter.println();
 		}
 
 		attributePrinter.close();
