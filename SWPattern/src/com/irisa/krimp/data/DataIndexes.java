@@ -4,13 +4,7 @@ import java.util.BitSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.function.Consumer;
-
 import org.apache.log4j.Logger;
-
-import com.irisa.exception.LogicException;
-
-import ca.pfv.spmf.patterns.itemset_array_integers_with_count.Itemset;
 
 public class DataIndexes {
 	
@@ -24,6 +18,7 @@ public class DataIndexes {
 	private HashMap<KItemset, BitSet> _codeTransactionVectors = new HashMap<KItemset, BitSet>();
 	
 	private int _highestItemIndice = 0;
+	private int _maxSize = 0;
 	
 	public DataIndexes(ItemsetSet transactions) {
 		this._transactions = transactions;
@@ -31,11 +26,18 @@ public class DataIndexes {
 		analyze();
 	}
 	
+	public int getMaxSize() {
+		return this._maxSize;
+	}
+	
 	private void analyze() {
 		for(int iTrans = 0; iTrans < this._transactions.size(); iTrans++ ) {
 			KItemset trans = this._transactions.get(iTrans);
 			if(this._transactionItemVectors.get(trans) == null) {
 				this._transactionItemVectors.put(trans, new BitSet());
+			}
+			if(trans.size() > this._maxSize) {
+				this._maxSize = trans.size();
 			}
 			Iterator<Integer> itTrans = trans.iterator();
 			while(itTrans.hasNext()) {
@@ -111,8 +113,15 @@ public class DataIndexes {
 		return getCodeTransactionVector(code).cardinality();
 	}
 	
-	public BitSet getTransactionItemVector(Itemset trans) {
-		return this._transactionItemVectors.get(trans);
+	public BitSet getTransactionItemVector(KItemset transaction) {
+		return this._transactionItemVectors.get(transaction);
+	}
+	
+	public BitSet getCodeItemVector(KItemset code) {
+		if(this._codeItemVectors.get(code) == null) {
+			computeCodeItemVector(code);
+		}
+		return this._codeItemVectors.get(code);
 	}
 	
 	public BitSet getItemTransactionVector(int item) {
@@ -130,9 +139,6 @@ public class DataIndexes {
 	}
 	
 	public BitSet getCodeTransactionVector(KItemset code) {
-		if(this._codeItemVectors.get(code) == null) {
-			computeCodeItemVector(code);
-		}
 		if(this._codeTransactionVectors.get(code) == null) {
 			computeCodeTransactionVector(code);
 		}

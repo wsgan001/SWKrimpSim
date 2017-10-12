@@ -21,13 +21,20 @@ public class KrimpAlgorithm {
 
 	private static Logger logger = Logger.getLogger(KrimpAlgorithm.class);
 
-	private ItemsetSet _transactions = null;
-	private ItemsetSet _candidateCodes = null;
+	protected ItemsetSet _transactions = null;
+	protected ItemsetSet _candidateCodes = null;
 
 
 	public KrimpAlgorithm(ItemsetSet transactions, ItemsetSet candidates) {
 		this._transactions = new ItemsetSet(transactions);
 		this._candidateCodes = new ItemsetSet(candidates);
+	}
+	
+	public int numberofUsedCandidates() {
+		if(this._candidateCodes != null) {
+			return this._candidateCodes.size();
+		}
+		return 0;
 	}
 
 	public CodeTable runAlgorithm(boolean pruning) throws LogicException {
@@ -76,7 +83,7 @@ public class KrimpAlgorithm {
 	 * @param superior
 	 * @return
 	 */
-	private ItemsetSet pruneSet(CodeTable inferior, CodeTable superior) {
+	protected ItemsetSet pruneSet(CodeTable inferior, CodeTable superior) {
 		ItemsetSet pruneSet = new ItemsetSet();
 		KItemset auxCode = null; 
 		Iterator<KItemset> itInferiorCodes = inferior.codeIterator(); 
@@ -123,7 +130,7 @@ public class KrimpAlgorithm {
 		return CTc; 
 	}
 	
-	private KItemset findLowestUsageCode (ItemsetSet pSet, CodeTable CT) {
+	protected KItemset findLowestUsageCode (ItemsetSet pSet, CodeTable CT) {
 		Collections.sort(pSet, new Comparator<KItemset>() {
 			@Override
 			public int compare(KItemset arg0, KItemset arg1) {

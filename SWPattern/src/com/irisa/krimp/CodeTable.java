@@ -26,17 +26,20 @@ public class CodeTable {
 	
 	private static Logger logger = Logger.getLogger(CodeTable.class);
 
-	private ItemsetSet _transactions = null;
-	private ItemsetSet _codes = null;
-	private HashMap<KItemset, Integer> _itemsetUsage = new HashMap<KItemset, Integer>();
-	private HashMap<KItemset, Integer> _itemsetCode = new HashMap<KItemset, Integer>();
-	private DataIndexes _index = null;
-	private long _usageTotal = 0;
+	protected ItemsetSet _transactions = null;
+	protected ItemsetSet _codes = null;
+	protected HashMap<KItemset, Integer> _itemsetUsage = new HashMap<KItemset, Integer>();
+	protected HashMap<KItemset, Integer> _itemsetCode = new HashMap<KItemset, Integer>();
+	protected DataIndexes _index = null;
+	protected long _usageTotal = 0;
 
 	// 	private HashMap<Itemset, BitSet> _codeSupportVector = new HashMap<Itemset, BitSet>();
 	
-	private boolean _standardFlag = false; // Set true if it is the standard codetable
-	private CodeTable _standardCT = null; // Codetable containing only singletons for the coding length of a CT
+	protected boolean _standardFlag = false; // Set true if it is the standard codetable
+	protected CodeTable _standardCT = null; // Codetable containing only singletons for the coding length of a CT
+	
+	protected CodeTable() {
+	}
 	
 	/**
 	 * Initialization of the usages and codes indices
@@ -67,7 +70,7 @@ public class CodeTable {
 		init();	
 	}
 	
-	private void init() {
+	protected void init() {
 		initSingletonSupports();
 		initCodes();
 		orderCodesStandardCoverageOrder();
@@ -125,9 +128,7 @@ public class CodeTable {
 	 * @return Iterator over a sorted temporary copy of the itemset list of the code table
 	 */
 	public Iterator<KItemset> codeIterator() {
-		ItemsetSet tmpCodes = new ItemsetSet(this._codes);
-		tmpCodes.sort(standardCoverOrderComparator);
-		return tmpCodes.iterator();
+		return _codes.iterator();
 	}
 	
 	public ItemsetSet getCodes() {
@@ -137,7 +138,7 @@ public class CodeTable {
 	/**
 	 * Create new indices for new codes, put the usage of each code to 0
 	 */
-	private void initCodes() {
+	protected void initCodes() {
 		this._codes.forEach(new Consumer<KItemset>() {
 			@Override
 			public void accept(KItemset code) {
@@ -151,8 +152,8 @@ public class CodeTable {
 		});
 	}
 	
-	private void initSingletonSupports() {
-		logger.debug("initSupport");
+	protected void initSingletonSupports() {
+//		logger.debug("initSupport");
 		
 		Iterator<Integer> itItem = _index.itemIterator();
 		while(itItem.hasNext()) {
@@ -304,30 +305,8 @@ public class CodeTable {
 	public double totalCompressedSize() throws LogicException {
 		double ctL = codeTableCodeLength();
 		double teL = encodedTransactionSetCodeLength();
-//		logger.debug("CodeTable Length: " + ctL + " transactionLength: " + teL);
 		return ctL + teL;
 	}
-
-//	/**
-//	 * Add the singletons of all items to the code table 
-//	 */
-//	private void initializeSingletons() {
-//		Iterator<Integer> itItems = _singletonSupports.keySet().iterator();
-//		while(itItems.hasNext()) {
-//			Integer item = itItems.next();
-//			
-//			Itemset single = new Itemset(item);
-//			single.setAbsoluteSupport(_singletonSupports.get(item));
-//			if(this._codes.contains(single)) {
-//				this._codes.removeFirstOccurrence(single);
-//				_itemsetUsage.remove(single);
-//				_itemsetCode.remove(single);
-//			}
-//			_itemsetUsage.put(single, single.getAbsoluteSupport());
-//			_itemsetCode.put(single, item);
-//			this._codes.addItemset(single);
-//		}
-//	}
 	
 	/**
 	 * Initialize the usage of each code according to the cover
@@ -335,24 +314,6 @@ public class CodeTable {
 	 */
 	public void updateUsages() {
 		this._usageTotal = 0;
-		
-//		Iterator<KItemset> itCodes = this.codeIterator();
-//		while(itCodes.hasNext()) {
-//			KItemset code = itCodes.next();
-//			
-//			_itemsetUsage.replace(code, 0);
-//			
-//			int itrans = this._index.getCodeTransactionVector(code).nextSetBit(0);
-//			while(itrans >= 0) {
-//				KItemset trans = this._transactions.get(itrans);
-//				if(isCover(trans, code)) {
-//					_itemsetUsage.replace(code, _itemsetUsage.get(code) +1);
-//				}
-//				itrans = this._index.getCodeTransactionVector(code).nextSetBit(itrans+1);
-//			}
-//			
-//			this._usageTotal += _itemsetUsage.get(code);
-//		}
 		
 		Iterator<KItemset> itCodes = this.codeIterator();
 		while(itCodes.hasNext()) {
@@ -365,11 +326,7 @@ public class CodeTable {
 				_itemsetUsage.replace(aux, _itemsetUsage.get(aux)+1); 
 			}
 			this._usageTotal+=codes.size(); 
-		}
-		
-		
-		
-		
+		}		
 	}
 	
 	/**
@@ -412,7 +369,7 @@ public class CodeTable {
 	 * @param code code
 	 * @return true if code is smaller or equal and contained in the transaction
 	 */
-	private boolean isCoverCandidate(KItemset trans, KItemset code) {
+	protected boolean isCoverCandidate(KItemset trans, KItemset code) {
 		return ( code.size() <= trans.size()  && ( trans.containsAll(code)));
 	}
 	
@@ -439,7 +396,7 @@ public class CodeTable {
 	 *  over the whole code set when one is cover without intersection with code
 	 * @return true if the code is part of the transaction cover
 	 */
-	private boolean isCover(KItemset trans, KItemset code, Iterator<KItemset> itLastTestedCode) {
+	protected boolean isCover(KItemset trans, KItemset code, Iterator<KItemset> itLastTestedCode) {
 		KItemset tmpCode = null;
 		while(itLastTestedCode.hasNext()) {
 			tmpCode = itLastTestedCode.next();
@@ -578,6 +535,8 @@ public class CodeTable {
 		StringBuilder r = new StringBuilder ();
 		r.append("Total Usages: ");
 		r.append(this._usageTotal);
+		r.append(" number of codes: ");
+		r.append(this._codes.size());
 		r.append('\n');
 		Iterator<KItemset> itIs = this.codeIterator();
 		while(itIs.hasNext()) {
