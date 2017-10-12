@@ -226,7 +226,6 @@ public class AttributeIndex {
 		Iterator<RDFPatternComponent> itAttr = _attributeItemIndex.keySet().iterator();
 		while(itAttr.hasNext()) {
 			RDFPatternComponent attr = itAttr.next();
-			logger.debug(attr);
 			List recordList = new ArrayList();
 			Iterator<Object> itAttribute = attr.toList().iterator();
 			while(itAttribute.hasNext()) {

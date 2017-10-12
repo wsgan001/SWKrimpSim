@@ -86,6 +86,7 @@ public class SWPatterns {
 		options.addOptionGroup(algorithm);
 		options.addOptionGroup(conversion);
 		options.addOption("pruning", false, "Activate post-acceptance pruning for better quality code table but slower performances."); 
+		options.addOption("noKrimp", false, "Krimp algorithm will no be launched, only the conversion of the first RDF file.");
 		options.addOption("noOut", false, "Not taking OUT properties into account for RDF conversion.");
 		options.addOption("noIn", false, "Not taking IN properties into account for RDF conversion.");
 		options.addOption("noTypes", false, "Not taking TYPES into account for RDF conversion.");
@@ -107,6 +108,7 @@ public class SWPatterns {
 				boolean inputConversionIndex = cmd.hasOption(inputConversionIndexOption);
 				boolean outputConversionIndex = cmd.hasOption(outputConversionIndexOption);
 				boolean classPattern = cmd.hasOption("classPattern");
+				boolean noKrimp = cmd.hasOption("noKrimp");
 
 				UtilOntology onto = new UtilOntology();
 				TransactionsExtractor converter = new TransactionsExtractor();
@@ -223,64 +225,62 @@ public class SWPatterns {
 				if(outputTransaction) {
 					index.printTransactionsItems(transactions, firstOutputTransactionFile);
 				}
-				
-
-				index.printAttributeIndex(outputConversionIndexFile);
-				index.readAttributeIndex(outputConversionIndexFile);
-				index.printAttributeIndex(outputConversionIndexFile + ".test");
 
 				realtransactions = index.convertToTransactions(transactions);
-				codes = new ItemsetSet(fsExtractor.computeItemsets(transactions, index));
 
 				logger.debug("Nb transactions: " + realtransactions.size());
 
 				logger.debug("Nb items: " + converter.getIndex().size());
 
 				baseRDF.close();
-
-				ItemsetSet realcodes = new ItemsetSet(codes);
-
-				try {
-					DataIndexes analysis = new DataIndexes(realtransactions);
-					CodeTable standardCT = CodeTable.createStandardCodeTable(realtransactions, analysis );
-
-					KrimpAlgorithm kAlgo = new KrimpAlgorithm(realtransactions, realcodes);
-					CodeTable krimpCT;
-					if(inputCodeTableCodes) {
-						ItemsetSet KRIMPcodes = Utils.readItemsetSetFile(firstKRIMPFile);
-						krimpCT = new CodeTable(realtransactions, KRIMPcodes, analysis);
-					} else {
-						krimpCT = kAlgo.runAlgorithm(activatePruning);
+				
+				if(! noKrimp) {
+					codes = new ItemsetSet(fsExtractor.computeItemsets(transactions, index));
+	
+					ItemsetSet realcodes = new ItemsetSet(codes);
+	
+					try {
+						DataIndexes analysis = new DataIndexes(realtransactions);
+						CodeTable standardCT = CodeTable.createStandardCodeTable(realtransactions, analysis );
+	
+						KrimpAlgorithm kAlgo = new KrimpAlgorithm(realtransactions, realcodes);
+						CodeTable krimpCT;
+						if(inputCodeTableCodes) {
+							ItemsetSet KRIMPcodes = Utils.readItemsetSetFile(firstKRIMPFile);
+							krimpCT = new CodeTable(realtransactions, KRIMPcodes, analysis);
+						} else {
+							krimpCT = kAlgo.runAlgorithm(activatePruning);
+						}
+	
+						if(outputCodeTableCodes) {
+							Utils.printItemsetSet(krimpCT.getCodes(), firstOutputKRIMPFile);
+						}
+						double normalSize = standardCT.totalCompressedSize();
+						double compressedSize = krimpCT.totalCompressedSize();
+						logger.debug("-------- FIRST RESULT ---------");
+						//					logger.debug(krimpCT);
+						//					logger.debug("First Code table: " + krimpCT);
+						logger.debug("First NormalLength: " + normalSize);
+						logger.debug("First CompressedLength: " + compressedSize);
+						logger.debug("First Compression: " + (compressedSize / normalSize));
+	
+						Iterator<KItemset> itKrimpCode = krimpCT.codeIterator();
+						Model rdfFinale = ModelFactory.createDefaultModel();
+						while(itKrimpCode.hasNext()) {
+							KItemset code = itKrimpCode.next();
+	
+							rdfFinale.add(index.rdfizePattern(code));
+						}
+						rdfFinale.write(new FileOutputStream("rdfPatterns.ttl"), "TTL");
+	
+						// Printing conversion index
+						if(outputConversionIndex) {
+							converter.getIndex().printAttributeIndex(outputConversionIndexFile);
+						}
+	
+					} catch (Exception e) {
+						logger.fatal("RAAAH", e);
 					}
-
-					if(outputCodeTableCodes) {
-						Utils.printItemsetSet(krimpCT.getCodes(), firstOutputKRIMPFile);
-					}
-					double normalSize = standardCT.totalCompressedSize();
-					double compressedSize = krimpCT.totalCompressedSize();
-					logger.debug("-------- FIRST RESULT ---------");
-					//					logger.debug(krimpCT);
-					//					logger.debug("First Code table: " + krimpCT);
-					logger.debug("First NormalLength: " + normalSize);
-					logger.debug("First CompressedLength: " + compressedSize);
-					logger.debug("First Compression: " + (compressedSize / normalSize));
-
-					Iterator<KItemset> itKrimpCode = krimpCT.codeIterator();
-					Model rdfFinale = ModelFactory.createDefaultModel();
-					while(itKrimpCode.hasNext()) {
-						KItemset code = itKrimpCode.next();
-
-						rdfFinale.add(index.rdfizePattern(code));
-					}
-					rdfFinale.write(new FileOutputStream("rdfPatterns.ttl"), "TTL");
-
-					// Printing conversion index
-					if(outputConversionIndex) {
-						converter.getIndex().printAttributeIndex(outputConversionIndexFile);
-					}
-
-				} catch (Exception e) {
-					logger.fatal("RAAAH", e);
 				}
 				onto.close();
 			}
