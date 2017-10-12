@@ -223,6 +223,11 @@ public class SWPatterns {
 				if(outputTransaction) {
 					index.printTransactionsItems(transactions, firstOutputTransactionFile);
 				}
+				
+
+				index.printAttributeIndex(outputConversionIndexFile);
+				index.readAttributeIndex(outputConversionIndexFile);
+				index.printAttributeIndex(outputConversionIndexFile + ".test");
 
 				realtransactions = index.convertToTransactions(transactions);
 				codes = new ItemsetSet(fsExtractor.computeItemsets(transactions, index));

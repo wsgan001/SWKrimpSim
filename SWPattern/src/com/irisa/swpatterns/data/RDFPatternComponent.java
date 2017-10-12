@@ -1,15 +1,21 @@
 package com.irisa.swpatterns.data;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
+import org.apache.jena.rdf.model.Literal;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
+import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Resource;
+import org.apache.log4j.Logger;
 
 import com.irisa.exception.LogicException;
+import com.irisa.swpatterns.SWPatterns;
 
 /**
  * Elements of a pattern, based on design pattern Composite
@@ -17,6 +23,8 @@ import com.irisa.exception.LogicException;
  *
  */
 public abstract class RDFPatternComponent {
+
+	private static Logger logger = Logger.getLogger(RDFPatternComponent.class);
 
 	public enum Type {
 		TYPE, // Type resource alone
@@ -89,26 +97,63 @@ public abstract class RDFPatternComponent {
 	}
 	
 	public static RDFPatternComponent parse(String element1, String element2) {
-		Model parserModel = ModelFactory.createDefaultModel();
-		RDFPatternComponent result;
-		
-		Resource res = parserModel.getResource(element1);
 		Type type = Type.valueOf(element2);
-		result = new RDFPatternResource(res, type);
-		parserModel.close();
-		return result;
+		if(type.equals(Type.OUT_VALUE)) {
+			ArrayList<String> elements = new ArrayList<String>();
+			elements.add(element1);
+			elements.add(element2);
+			return parse(elements);
+		} else {
+			Model parserModel = ModelFactory.createDefaultModel();
+			RDFPatternComponent result;
+			
+			Resource res = parserModel.getResource(element1);
+			result = new RDFPatternResource(res, type);
+			parserModel.close();
+			return result;
+		}
 	}
 	
 	public static RDFPatternComponent parse(String element1, String element2, String element3) {
-		Model parserModel = ModelFactory.createDefaultModel();
-		RDFPatternComponent result;
-		Resource res1 = parserModel.getResource(element1);
-		Resource res2 = parserModel.getResource(element2);
 		Type typePath = Type.valueOf(element3);
-		result = new RDFPatternPathFragment(res1, res2, typePath);
-		parserModel.close();
-		
-		return result;
+		if(typePath.equals(Type.OUT_VALUE)) {
+			ArrayList<String> elements = new ArrayList<String>();
+			elements.add(element1);
+			elements.add(element2);
+			elements.add(element3);
+			return parse(elements);
+		} else {
+			Model parserModel = ModelFactory.createDefaultModel();
+			RDFPatternComponent result;
+			Resource res1 = parserModel.getResource(element1);
+			Resource res2 = parserModel.getResource(element2);
+			result = new RDFPatternPathFragment(res1, res2, typePath);
+			parserModel.close();
+			
+			return result;
+		}
+	}
+	
+	public static RDFPatternComponent parse(List<String> elements) {
+		if(elements.size() > 1) {
+			Model parserModel = ModelFactory.createDefaultModel();
+			RDFPatternComponent result;
+			
+			ArrayList<RDFNode> nodes = new ArrayList<RDFNode>();
+			for(int i = 0; i < elements.size()-2; i++) { // before last element is literal, last element is type
+				Resource res = parserModel.getResource(elements.get(i));
+				nodes.add(res);
+			}
+			Literal lit = parserModel.createLiteral(elements.get(elements.size()-2));
+			nodes.add(lit);
+			
+			Type typePath = Type.valueOf(elements.get(elements.size()-1));
+			result = new RDFPatternValuePath(nodes, typePath);
+			parserModel.close();
+			
+			return result;
+		}
+		return null;
 	}
 
 	@Override

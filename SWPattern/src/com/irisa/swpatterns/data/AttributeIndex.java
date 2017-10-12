@@ -33,6 +33,7 @@ import com.irisa.krimp.data.ItemsetSet;
 import com.irisa.krimp.data.KItemset;
 import com.irisa.krimp.data.Utils;
 import com.irisa.swpatterns.Global;
+import com.irisa.swpatterns.data.RDFPatternComponent.Type;
 
 import ca.pfv.spmf.patterns.itemset_array_integers_with_count.Itemset;
 import ca.pfv.spmf.patterns.itemset_array_integers_with_count.Itemsets;
@@ -53,6 +54,22 @@ public class AttributeIndex {
 	private static int countPattern = 0;
 	
 	private static AttributeIndex _instance = null;
+	
+	protected AttributeIndex() {
+		
+	}
+	
+	protected AttributeIndex(AttributeIndex index) {
+		this._attributes = new LabeledTransaction(index._attributes);
+		this._attributeItemIndex = new HashMap<RDFPatternComponent, Integer>(index._attributeItemIndex);
+		this._itemAttributeIndex = new HashMap<Integer, RDFPatternComponent>(this._itemAttributeIndex);
+	}
+	
+	public void clear() {
+		_attributes.clear();
+		_attributeItemIndex.clear();
+		_itemAttributeIndex.clear();
+	}
 
 	private static int getPatternNumber() {
 		return AttributeIndex.countPattern++;
@@ -63,16 +80,6 @@ public class AttributeIndex {
 			_instance = new AttributeIndex();
 		}
 		return _instance;
-	}
-	
-	protected AttributeIndex() {
-		
-	}
-	
-	protected AttributeIndex(AttributeIndex index) {
-		this._attributes = new LabeledTransaction(index._attributes);
-		this._attributeItemIndex = new HashMap<RDFPatternComponent, Integer>(index._attributeItemIndex);
-		this._itemAttributeIndex = new HashMap<Integer, RDFPatternComponent>(this._itemAttributeIndex);
 	}
 
 	public Iterator<RDFPatternComponent> patternComponentIterator() {
@@ -99,7 +106,7 @@ public class AttributeIndex {
 	}
 	
 	public void add(RDFPatternComponent attribute) {
-		if(! contains(attribute)) {
+		if(! contains(attribute) && attribute != null) {
 			_attributes.add(attribute);
 			if(! _attributeItemIndex.containsKey(attribute)) {
 				_attributeItemIndex.put(attribute, Utils.getAttributeNumber());
@@ -168,7 +175,6 @@ public class AttributeIndex {
 
 	/**
 	 * Print the transaction in the format expected by SPMF (int separated by spaces). Will update the attribute/item indexes
-	 * @param _attributes Set of all attributes appearing in the descriptions
 	 * @param transactions
 	 * @param output
 	 * @return
@@ -206,7 +212,7 @@ public class AttributeIndex {
 	
 	public void printAttributeIndex(String filename) {
 		try {
-		CSVPrinter attributePrinter = new CSVPrinter(new PrintWriter(new BufferedWriter(new FileWriter(filename))), CSVFormat.TDF.withQuoteMode(QuoteMode.NONE));
+		CSVPrinter attributePrinter = new CSVPrinter(new PrintWriter(new BufferedWriter(new FileWriter(filename))), CSVFormat.TDF.withQuoteMode(QuoteMode.ALL));
 		
 		// Writing attributes
 //		LinkedList<RDFPatternComponent> compos = new LinkedList<RDFPatternComponent>(_attributeItemIndex.keySet());
@@ -220,13 +226,14 @@ public class AttributeIndex {
 		Iterator<RDFPatternComponent> itAttr = _attributeItemIndex.keySet().iterator();
 		while(itAttr.hasNext()) {
 			RDFPatternComponent attr = itAttr.next();
+			logger.debug(attr);
 			List recordList = new ArrayList();
 			Iterator<Object> itAttribute = attr.toList().iterator();
 			while(itAttribute.hasNext()) {
 				Object attribute = itAttribute.next();
 				if(attribute instanceof Literal) {
 					Literal lit = (Literal) attribute;
-					attributePrinter.print("\"" + lit + "\"");
+					attributePrinter.print(lit );
 				} else {
 					attributePrinter.print(attribute);
 				}
@@ -245,21 +252,38 @@ public class AttributeIndex {
 	
 	public void readAttributeIndex(String filename) {
 		try {
+			this.clear();
+			
 			Reader in = new FileReader(filename);
-			Iterable<CSVRecord> records = CSVFormat.TDF.parse(in);
+			Iterable<CSVRecord> records = CSVFormat.TDF.withQuoteMode(QuoteMode.ALL).parse(in);
 			for (CSVRecord record : records) {
 				String itemS = record.get(record.size()-1);
+				Type type = Type.valueOf(record.get(record.size()-2));
 				int item = Integer.parseInt(itemS);
 				RDFPatternComponent compo;
-				switch(record.size()) {
-				case 3:
+				switch(type) {
+				case OUT_NEIGHBOUR:
+				case IN_NEIGHBOUR:
+				case TYPE:
 					compo = RDFPatternComponent.parse(record.get(0), record.get(1));
 					break;
-				case 4:
+				case OUT_NEIGHBOUR_TYPE:
+				case IN_NEIGHBOUR_TYPE:
 					compo = RDFPatternComponent.parse(record.get(0), record.get(1), record.get(2));
 					break;
 				default:
-					throw new LogicException("Couldn't parse line " + record.getRecordNumber() + " : " + record);
+					ArrayList<String> elements = new ArrayList<String>();
+					Iterator<String> itRecord = record.iterator();
+					while(itRecord.hasNext()) {
+						String column = itRecord.next();
+						if(! itRecord.hasNext()) { // This is the last item
+							break;
+						}
+						elements.add(column);
+					}
+					compo = RDFPatternComponent.parse(elements);
+					assert(compo != null);
+					break;
 				}
 				
 				Utils.addUsedItemNumber(item);
