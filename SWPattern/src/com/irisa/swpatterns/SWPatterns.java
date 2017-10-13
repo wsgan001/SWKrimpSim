@@ -23,6 +23,7 @@ import com.irisa.jenautils.QueryResultIterator;
 import com.irisa.jenautils.UtilOntology;
 import com.irisa.krimp.CodeTable;
 import com.irisa.krimp.KrimpAlgorithm;
+import com.irisa.krimp.KrimpSlimAlgorithm;
 import com.irisa.krimp.data.DataIndexes;
 import com.irisa.krimp.data.ItemsetSet;
 import com.irisa.krimp.data.KItemset;
@@ -82,6 +83,7 @@ public class SWPatterns {
 		options.addOption("resultWindow", true, "Size of the result window used to query RDF data.");
 		options.addOption("classPattern", true, "Substring contained by the class uris.");
 		options.addOption("class", true, "Class of the selected individuals.");
+		options.addOption("ignoredProperties", true, "File containing properties to be ignored during transaction extraction. File must contain a column of URIs between quotes.");
 		// Boolean behavioral options
 		options.addOptionGroup(algorithm);
 		options.addOptionGroup(conversion);
@@ -180,7 +182,7 @@ public class SWPatterns {
 				// Other encoding options
 				String className = cmd.getOptionValue("class");
 				String pathOption = cmd.getOptionValue("path");
-
+				String ignoredPropertiesFilename = cmd.getOptionValue("ignoredProperties");
 
 				if(limitString != null) {
 					QueryResultIterator.setDefaultLimit(Integer.valueOf(limitString));
@@ -213,7 +215,9 @@ public class SWPatterns {
 				if(inputConversionIndex) {
 					index.readAttributeIndex(inputConversionIndexFile);
 				}
-
+				
+				converter.readIgnoredPropertiesFile(ignoredPropertiesFilename);
+				
 				if(cmd.hasOption("class")) {
 					Resource classRes = onto.getModel().createResource(className);
 					transactions = converter.extractTransactionsForClass(baseRDF, onto, classRes);
@@ -235,21 +239,21 @@ public class SWPatterns {
 				baseRDF.close();
 				
 				if(! noKrimp) {
-					codes = new ItemsetSet(fsExtractor.computeItemsets(transactions, index));
+//					codes = new ItemsetSet(fsExtractor.computeItemsets(transactions, index));
 	
-					ItemsetSet realcodes = new ItemsetSet(codes);
+//					ItemsetSet realcodes = new ItemsetSet(codes);
 	
 					try {
 						DataIndexes analysis = new DataIndexes(realtransactions);
 						CodeTable standardCT = CodeTable.createStandardCodeTable(realtransactions, analysis );
 	
-						KrimpAlgorithm kAlgo = new KrimpAlgorithm(realtransactions, realcodes);
+						KrimpSlimAlgorithm kAlgo = new KrimpSlimAlgorithm(realtransactions);
 						CodeTable krimpCT;
 						if(inputCodeTableCodes) {
 							ItemsetSet KRIMPcodes = Utils.readItemsetSetFile(firstKRIMPFile);
 							krimpCT = new CodeTable(realtransactions, KRIMPcodes, analysis);
 						} else {
-							krimpCT = kAlgo.runAlgorithm(activatePruning);
+							krimpCT = kAlgo.runAlgorithm();
 						}
 	
 						if(outputCodeTableCodes) {
@@ -258,18 +262,20 @@ public class SWPatterns {
 						double normalSize = standardCT.totalCompressedSize();
 						double compressedSize = krimpCT.totalCompressedSize();
 						logger.debug("-------- FIRST RESULT ---------");
-						//					logger.debug(krimpCT);
-						//					logger.debug("First Code table: " + krimpCT);
-						logger.debug("First NormalLength: " + normalSize);
-						logger.debug("First CompressedLength: " + compressedSize);
-						logger.debug("First Compression: " + (compressedSize / normalSize));
+//						logger.debug(krimpCT);
+//						logger.debug("First Code table: " + krimpCT);
+						logger.debug("NormalLength: " + normalSize);
+						logger.debug("CompressedLength: " + compressedSize);
+						logger.debug("Compression: " + (compressedSize / normalSize));
 	
 						Iterator<KItemset> itKrimpCode = krimpCT.codeIterator();
+						int codeNum = 0;
 						Model rdfFinale = ModelFactory.createDefaultModel();
 						while(itKrimpCode.hasNext()) {
 							KItemset code = itKrimpCode.next();
 	
-							rdfFinale.add(index.rdfizePattern(code));
+							rdfFinale.add(index.rdfizePattern(code, codeNum));
+							codeNum++;
 						}
 						rdfFinale.write(new FileOutputStream("rdfPatterns.ttl"), "TTL");
 	

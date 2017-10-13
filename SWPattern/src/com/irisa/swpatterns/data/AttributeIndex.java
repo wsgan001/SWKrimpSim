@@ -323,8 +323,11 @@ public class AttributeIndex {
 		}
 		return result;
 	}
-
 	public Model rdfizePattern(KItemset liSet) {
+		return rdfizePattern(liSet, -1);
+	}
+
+	public Model rdfizePattern(KItemset liSet, int num) {
 		Model result = ModelFactory.createDefaultModel();
 	
 		Resource mainRes = result.createResource(Global.basePatternUri + getPatternNumber());
@@ -379,6 +382,9 @@ public class AttributeIndex {
 		}
 	
 		result.add(result.createLiteralStatement(mainRes, result.createProperty(Global.baseDomain+"property/support"), liSet.getSupport()));
+		if(num > -1) {
+			result.add(result.createLiteralStatement(mainRes, result.createProperty(Global.baseDomain+"property/orderNum"), num));
+		}
 	
 		return result;
 	}

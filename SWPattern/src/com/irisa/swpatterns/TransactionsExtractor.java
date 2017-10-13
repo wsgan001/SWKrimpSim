@@ -1,5 +1,9 @@
 package com.irisa.swpatterns;
 
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.Reader;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -8,9 +12,15 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.function.Consumer;
 
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVRecord;
+import org.apache.commons.csv.QuoteMode;
 import org.apache.commons.math3.stat.descriptive.AggregateSummaryStatistics;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.apache.jena.atlas.web.HttpException;
+import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.ModelFactory;
+import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.vocabulary.RDF;
@@ -1067,6 +1077,29 @@ public class TransactionsExtractor {
 
 	public void setPathsLength(int pathsLength) {
 		this._pathsLength = pathsLength;
+	}
+	
+	/**
+	 * Read a file containing URI between quotes on one column
+	 * @param filename
+	 */
+	public void readIgnoredPropertiesFile(String filename) {
+
+		Model readingModel = ModelFactory.createDefaultModel();
+		try {
+			Reader in = new FileReader(filename);
+			Iterable<CSVRecord> records = CSVFormat.TDF.withQuoteMode(QuoteMode.ALL).parse(in);
+			for (CSVRecord record : records) {
+				String uriString = record.get(0);
+				Property prop = readingModel.createProperty(uriString);
+				addIgnoredProperty(prop);
+			}
+			in.close();
+		} catch (IOException e) {
+			logger.error("Error during ignored properties file reading ", e);
+		} finally {
+			readingModel.close();
+		}
 	}
 	
 }
