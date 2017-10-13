@@ -55,13 +55,6 @@ public class SWPatterns {
 		String PropertiesAndOthersConversionOption = "nPropertiesAndOthers";
 		String PropertyPathAndValueConversionOption = "nPropertyPathAndValues";
 
-		OptionGroup algorithm = new OptionGroup();
-		algorithm.addOption(new Option("FPClose", false, "Use FPClose algorithm. (default)"));
-		algorithm.addOption(new Option("FPMax", false, "Use FPMax algorithm."));
-		algorithm.addOption(new Option("FIN", false, "Use FIN algorithm."));
-		algorithm.addOption(new Option("PrePost", false, "Use PrePost algorithm."));
-		algorithm.addOption(new Option("FPGrowth", false, "Use FPGrowth algorithm."));
-		algorithm.addOption(new Option("Relim", false, "Use Relim algorithm."));
 		OptionGroup conversion = new OptionGroup();
 		conversion.addOption(new Option(PropertiesConversionOption, false, "Extract items representing only properties (central individual types, out-going and in-going properties), encoding="+Neighborhood.Property+"."));
 		conversion.addOption(new Option(PropertiesAndTypesConversionOption, false, "Extract items representing only properties and connected ressources types, encoding="+Neighborhood.PropertyAndType+"."));
@@ -85,9 +78,7 @@ public class SWPatterns {
 		options.addOption("class", true, "Class of the selected individuals.");
 		options.addOption("ignoredProperties", true, "File containing properties to be ignored during transaction extraction. File must contain a column of URIs between quotes.");
 		// Boolean behavioral options
-		options.addOptionGroup(algorithm);
 		options.addOptionGroup(conversion);
-		options.addOption("pruning", false, "Activate post-acceptance pruning for better quality code table but slower performances."); 
 		options.addOption("noKrimp", false, "Krimp algorithm will no be launched, only the conversion of the first RDF file.");
 		options.addOption("noOut", false, "Not taking OUT properties into account for RDF conversion.");
 		options.addOption("noIn", false, "Not taking IN properties into account for RDF conversion.");
@@ -119,29 +110,9 @@ public class SWPatterns {
 				ItemsetSet codes = null;
 
 				// Boolean options
-				boolean activatePruning = cmd.hasOption("pruning"); 
 				converter.setNoTypeTriples( cmd.hasOption("noTypes") || converter.noTypeTriples());
 				converter.noInTriples(cmd.hasOption("noIn") || converter.noInTriples());
 				converter.setNoOutTriples(cmd.hasOption("noOut") || converter.noOutTriples());
-				// Algorithm are excluding each other
-				if(cmd.hasOption("FPGrowth")) {
-					fsExtractor.setAlgoFPGrowth();
-				}
-				else if(cmd.hasOption("FPClose")) {
-					fsExtractor.setAlgoFPClose();
-				}
-				else if(cmd.hasOption("FPMax")) {
-					fsExtractor.setAlgoFPMax();
-				}
-				else if(cmd.hasOption("FIN")) {
-					fsExtractor.setAlgoFIN();
-				}
-				else if(cmd.hasOption("Relim")) {
-					fsExtractor.setAlgoRelim();
-				}
-				else if(cmd.hasOption("PrePost")) {
-					fsExtractor.setAlgoPrePost();
-				}
 
 				fsExtractor.setMinSupport(0.0);
 
@@ -156,7 +127,6 @@ public class SWPatterns {
 				if(cmd.hasOption(PropertiesAndOthersConversionOption)) {
 					converter.setNeighborLevel(Neighborhood.PropertyAndOther);
 				}
-				logger.debug("Pruning activated: "+activatePruning);
 
 				// NO MODE cmd.hasOption() past this point
 
@@ -181,7 +151,6 @@ public class SWPatterns {
 				String classRegex = cmd.getOptionValue("classPattern");
 				// Other encoding options
 				String className = cmd.getOptionValue("class");
-				String pathOption = cmd.getOptionValue("path");
 				String ignoredPropertiesFilename = cmd.getOptionValue("ignoredProperties");
 
 				if(limitString != null) {
@@ -194,10 +163,6 @@ public class SWPatterns {
 					UtilOntology.setClassRegex(classRegex);
 				} else {
 					UtilOntology.setClassRegex(null);
-				}
-
-				if(pathOption != null) {
-					converter.setPathsLength(Integer.valueOf(pathOption));
 				}
 
 				BaseRDF baseRDF = new BaseRDF(firstRDFFile, MODE.LOCAL);
